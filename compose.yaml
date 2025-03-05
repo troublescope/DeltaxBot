@@ -1,0 +1,30 @@
+services:
+  vipbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vipbot
+    restart: unless-stopped
+    env_file:
+      - config.env
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    environment:
+      - TZ=Asia/Jakarta
+      - PYTHONUNBUFFERED=1
+    networks:
+      - bot_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0) if True else sys.exit(1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  bot_network:
+    driver: bridge
