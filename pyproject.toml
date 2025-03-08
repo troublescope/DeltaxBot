@@ -11,9 +11,9 @@ dependencies = [
     "colorlog>=6.9.0",
     "fastapi>=0.115.11",
     "pydantic>=2.10.6",
-    "pyrofork>=2.3.58",
+    "pyrotgfork>=2.2.9",
     "python-dotenv>=1.0.1",
-    "tgcrypto-pyrofork>=1.2.7",
+    "tgcrypto>=1.2.5",
     "uvicorn>=0.34.0",
     "uvloop>=0.21.0",
 ]

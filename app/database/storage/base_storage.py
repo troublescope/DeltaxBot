@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from beanie import Document
 from pydantic import Field
@@ -12,7 +12,7 @@ class SessionDoc(Document):
     auth_key: bytes
     date: int
     user_id: Optional[int] = Field(default=0)
-    is_bot: Optional[bool] = Field(default=False)
+    is_bot: Optional[bool]
 
     class Settings:
         name = "session"
@@ -22,7 +22,7 @@ class PeerDoc(Document):
     id: int = Field(alias="_id")
     access_hash: int
     type: str
-    username: Optional[str] = None
+    username: Optional[Union[list, str]] = None
     phone_number: Optional[str] = None
     last_update_on: int
 
@@ -34,6 +34,12 @@ class UsernameDoc(Document):
     id: str = Field(alias="_id")
     peer_id: int
     last_update_on: int
+
+    # @field_validator("id", mode="before")
+    # def validate_id(cls, value):
+    #    if isinstance(value, str):
+    #       return value.split(",")
+    #   return value
 
     class Settings:
         name = "usernames"

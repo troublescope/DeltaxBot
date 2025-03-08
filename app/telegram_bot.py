@@ -47,7 +47,7 @@ class TelegramBot:
             api_hash=config.api_hash,
             bot_token=config.bot_token,
             plugins={"root": "app.handlers"},
-            storage=self.storage,  # Use the storage parameter for your MongoStorage instance
+            storage_engine=self.storage,
         )
         await self.client.start()
         logger.info("Bot client started.")

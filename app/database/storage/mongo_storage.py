@@ -117,7 +117,8 @@ class MongoStorage(Storage):
         """
         s = int(time.time())
         for peer in peers:
-            peer_id, access_hash, peer_type, username, phone_number = peer
+            peer_id, access_hash, peer_type, username, *rest = peer
+            phone_number = rest[0] if rest else None
             doc = await PeerDoc.find_one(PeerDoc.id == peer_id)
             if doc:
                 doc.access_hash = access_hash
