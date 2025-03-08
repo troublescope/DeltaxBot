@@ -15,4 +15,5 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "tgcrypto-pyrofork>=1.2.7",
     "uvicorn>=0.34.0",
+    "uvloop>=0.21.0",
 ]

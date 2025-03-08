@@ -1,4 +1,4 @@
-from .server import WebhookHandler
+from .server import WebhookListener
 
 
-__all__ = ["WebhookHandler"]
+__all__ = ["WebhookListener"]

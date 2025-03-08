@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from app.utils import logger
 
 
-class GenericWebhookListener:
+class WebhookListener:
     """
     A generic webhook listener that receives payloads, logs them, and returns a success response.
     This version maintains the basic structure, including the /webhook endpoint, logging, and server startup.

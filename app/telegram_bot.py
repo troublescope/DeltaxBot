@@ -13,14 +13,14 @@ from app.database.storage import (
     UsernameDoc,
 )
 from app.utils import logger
-from app.webhook import WebhookHandler
+from app.webhook import WebhookListener
 
 
 class TelegramBot:
     def __init__(self):
         self.name: str = "DeltaBot"
         self.client: Client = None
-        self.storage: MongoStorage = None
+        self.storage = None  # Initialize storage later
 
     async def init_storage(self):
         """
@@ -47,13 +47,13 @@ class TelegramBot:
             api_hash=config.api_hash,
             bot_token=config.bot_token,
             plugins={"root": "app.handlers"},
-            mongodb=self.storage,
+            storage=self.storage,  # Use the storage parameter for your MongoStorage instance
         )
         await self.client.start()
         logger.info("Bot client started.")
 
         if config.webhook_server:
-            webhook = WebhookHandler(config.saweria_stream_key, self.client)
+            webhook = WebhookListener(config.saweria_stream_key, self.client)
             asyncio.create_task(webhook.start())
             logger.info("Using Webhook as server....")
 
@@ -61,4 +61,4 @@ class TelegramBot:
 
     async def run(self):
         await self.start()
-        logger.info("Bot is running .")
+        logger.info("Bot is running.")

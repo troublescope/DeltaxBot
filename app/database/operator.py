@@ -3,7 +3,7 @@ from typing import Optional
 
 from pyrogram import types
 
-from .models import Chat, Stats
+from .base import Chat, Stats
 
 
 async def create_chat(
@@ -115,7 +115,7 @@ async def increment_messages(count: int = 1) -> Stats:
     """
     Increment the total_messages counter.
     """
-    stats = await get_stats()
+    stats = await get_stats()  # Fixed: proper function call syntax
     stats.total_messages += count
     stats.updated_at = datetime.utcnow()
     await stats.save()

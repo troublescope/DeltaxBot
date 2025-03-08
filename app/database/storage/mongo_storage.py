@@ -3,6 +3,7 @@ import time
 from typing import Any, List, Optional, Tuple, Union
 
 from bson.codec_options import CodecOptions
+from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.client_session import TransactionOptions
 from pymongo.read_concern import ReadConcern
 from pymongo.read_preferences import (
@@ -76,12 +77,13 @@ class MongoStorage(Storage):
 
     async def open(self):
         """
-        Open the session by ensuring a SessionDoc with _id=0 exists.
+        Open the session by ensuring a SessionDoc with id=0 exists.
         """
-        session = await SessionDoc.find_one(SessionDoc._id == 0)
+        session = await SessionDoc.find_one(SessionDoc.id == 0)
         if session:
             return
         session = SessionDoc(
+            id=0,
             dc_id=2,
             api_id=None,
             test_mode=None,
@@ -102,7 +104,7 @@ class MongoStorage(Storage):
         """
         Delete the session document; and if configured, delete all peers.
         """
-        session = await SessionDoc.find_one(SessionDoc._id == 0)
+        session = await SessionDoc.find_one(SessionDoc.id == 0)
         if session:
             await session.delete()
         if self._remove_peers:
@@ -116,7 +118,7 @@ class MongoStorage(Storage):
         s = int(time.time())
         for peer in peers:
             peer_id, access_hash, peer_type, username, phone_number = peer
-            doc = await PeerDoc.find_one(PeerDoc._id == peer_id)
+            doc = await PeerDoc.find_one(PeerDoc.id == peer_id)
             if doc:
                 doc.access_hash = access_hash
                 doc.type = peer_type
@@ -126,7 +128,7 @@ class MongoStorage(Storage):
                 await doc.save()
             else:
                 new_peer = PeerDoc(
-                    _id=peer_id,
+                    id=peer_id,
                     access_hash=access_hash,
                     type=peer_type,
                     username=username,
@@ -143,14 +145,14 @@ class MongoStorage(Storage):
         for peer_id, username in usernames:
             # Remove any existing username documents with the same peer_id
             await UsernameDoc.find(UsernameDoc.peer_id == peer_id).delete()
-            doc = await UsernameDoc.find_one(UsernameDoc._id == username)
+            doc = await UsernameDoc.find_one(UsernameDoc.id == username)
             if doc:
                 doc.peer_id = peer_id
                 doc.last_update_on = s
                 await doc.save()
             else:
                 new_username = UsernameDoc(
-                    _id=username, peer_id=peer_id, last_update_on=s
+                    id=username, peer_id=peer_id, last_update_on=s
                 )
                 await new_username.insert()
 
@@ -159,22 +161,22 @@ class MongoStorage(Storage):
         Update or retrieve the update state.
 
         - If called with no argument (value == object), return a list of state values.
-        - If value is an int, delete the state document with that _id.
+        - If value is an int, delete the state document with that id.
         - If value is a tuple (id, pts, qts, date, seq), upsert the state document.
         """
         if value == object:
             states = []
             async for state in UpdateStateDoc.find_all():
-                states.append([state._id, state.pts, state.qts, state.date, state.seq])
+                states.append([state.id, state.pts, state.qts, state.date, state.seq])
             return states if states else None
         else:
             if isinstance(value, int):
-                doc = await UpdateStateDoc.find_one(UpdateStateDoc._id == value)
+                doc = await UpdateStateDoc.find_one(UpdateStateDoc.id == value)
                 if doc:
                     await doc.delete()
             else:
                 state_id, pts, qts, date_val, seq = value
-                doc = await UpdateStateDoc.find_one(UpdateStateDoc._id == state_id)
+                doc = await UpdateStateDoc.find_one(UpdateStateDoc.id == state_id)
                 if doc:
                     doc.pts = pts
                     doc.qts = qts
@@ -183,7 +185,7 @@ class MongoStorage(Storage):
                     await doc.save()
                 else:
                     new_state = UpdateStateDoc(
-                        _id=state_id, pts=pts, qts=qts, date=date_val, seq=seq
+                        id=state_id, pts=pts, qts=qts, date=date_val, seq=seq
                     )
                     await new_state.insert()
 
@@ -191,7 +193,7 @@ class MongoStorage(Storage):
         """
         Remove the update state document for the given chat_id.
         """
-        doc = await UpdateStateDoc.find_one(UpdateStateDoc._id == chat_id)
+        doc = await UpdateStateDoc.find_one(UpdateStateDoc.id == chat_id)
         if doc:
             await doc.delete()
 
@@ -199,10 +201,10 @@ class MongoStorage(Storage):
         """
         Retrieve a peer by its ID and return a Pyrogram input peer.
         """
-        doc = await PeerDoc.find_one(PeerDoc._id == peer_id)
+        doc = await PeerDoc.find_one(PeerDoc.id == peer_id)
         if not doc:
             raise KeyError(f"ID not found: {peer_id}")
-        return get_input_peer(doc._id, doc.access_hash, doc.type)
+        return get_input_peer(doc.id, doc.access_hash, doc.type)
 
     async def get_peer_by_username(self, username: str):
         """
@@ -210,17 +212,17 @@ class MongoStorage(Storage):
         """
         doc = await PeerDoc.find_one(PeerDoc.username == username)
         if doc is None:
-            doc = await UsernameDoc.find_one(UsernameDoc._id == username)
+            doc = await UsernameDoc.find_one(UsernameDoc.id == username)
             if doc is None:
                 raise KeyError(f"Username not found: {username}")
             if abs(time.time() - doc.last_update_on) > self.USERNAME_TTL:
                 raise KeyError(f"Username expired: {username}")
-            doc = await PeerDoc.find_one(PeerDoc._id == doc.peer_id)
+            doc = await PeerDoc.find_one(PeerDoc.id == doc.peer_id)
             if doc is None:
                 raise KeyError(f"Username not found: {username}")
         if abs(time.time() - doc.last_update_on) > self.USERNAME_TTL:
             raise KeyError(f"Username expired: {username}")
-        return get_input_peer(doc._id, doc.access_hash, doc.type)
+        return get_input_peer(doc.id, doc.access_hash, doc.type)
 
     async def get_peer_by_phone_number(self, phone_number: str):
         """
@@ -229,14 +231,14 @@ class MongoStorage(Storage):
         doc = await PeerDoc.find_one(PeerDoc.phone_number == phone_number)
         if doc is None:
             raise KeyError(f"Phone number not found: {phone_number}")
-        return get_input_peer(doc._id, doc.access_hash, doc.type)
+        return get_input_peer(doc.id, doc.access_hash, doc.type)
 
     async def _get(self):
         """
         Internal helper: retrieve a session attribute based on the caller's function name.
         """
         attr = inspect.stack()[2].function
-        session = await SessionDoc.find_one(SessionDoc._id == 0)
+        session = await SessionDoc.find_one(SessionDoc.id == 0)
         if not session:
             return None
         return getattr(session, attr, None)
@@ -246,7 +248,7 @@ class MongoStorage(Storage):
         Internal helper: update a session attribute based on the caller's function name.
         """
         attr = inspect.stack()[2].function
-        session = await SessionDoc.find_one(SessionDoc._id == 0)
+        session = await SessionDoc.find_one(SessionDoc.id == 0)
         if session:
             setattr(session, attr, value)
             await session.save()
