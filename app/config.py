@@ -1,72 +1,44 @@
 import os
+from typing import List, Optional
 
-from dotenv import load_dotenv
-
-
-def load_var(env_file="config.env"):
-    """
-    Load environment variables from a specified file or fallback to .env
-
-    Args:
-        env_file (str): Primary environment file path to load
-    """
-    if os.path.exists(env_file):
-        load_dotenv(env_file)
-    else:
-        load_dotenv(".env")
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-load_var()
+class Settings(BaseSettings):
+    api_id: int
+    api_hash: str
+    bot_token: str
+    channel_log: Optional[int] = None
+    download_path: str = "downloads"
+    database_uri: str
+    owner_id: List[int]
+    port: int = 80
+    webhook_server: bool = True
 
+    # Spotfify thing
+    spotify_id: Optional[str] = ""
+    spotify_secret: Optional[str] = ""
 
-class Config:
-    """
-    Configuration class that loads and validates required environment variables.
-
-    Required Environment Variables:
-        - API_ID: Integer
-        - API_HASH: String
-        - BOT_TOKEN: String
-        - OWNER_ID: List of Integers
-        - DATABASE_URI: String
-
-    Optional Environment Variables:
-        - CHANNEL_DB: Integer (defaults to 0)
-        - SAWERIA_EMAIL: String
-        - SAWERIA_PASSWORD: String
-        - SAWERIA_STREAM_KEY: String
-        - PORT: Integer (defaults to 80)
-        - WEBHOOK_SERVER: Boolean (defaults to True)
-
-    Raises:
-        ValueError: If any required environment variables are missing
-        RuntimeError: If there's an error during configuration loading
-    """
-
-    try:
-        api_id = int(os.environ.get("API_ID", 0))
-        api_hash = os.environ.get("API_HASH", "")
-        bot_token = os.environ.get("BOT_TOKEN", "")
-        owner_id = list(map(int, os.environ.get("OWNER_ID", "").split(",")))
-        database_uri = os.environ.get("DATABASE_URI", "")
-        channel_db = int(os.environ.get("CHANNEL_DB", 0))
-        saweria_email = os.environ.get("SAWERIA_EMAIL", "")
-        saweria_password = os.environ.get("SAWERIA_PASSWORD", "")
-        saweria_stream_key = os.environ.get("SAWERIA_STREAM_KEY", "")
-        channel_log = os.environ.get("CHANNEL_LOG")
-        channel_log = int(channel_log) if channel_log is not None else None
-        port = int(os.environ.get("PORT", 80))
-        webhook_server = os.environ.get("WEBHOOK_SERVER", "false").lower() in (
-            "true",
-            "1",
-            "t",
-            "yes",
+    @field_validator("owner_id", mode="before")
+    def parse_owner_id(cls, v):
+        if isinstance(v, int):
+            return [v]
+        if isinstance(v, str):
+            if v.isdigit():
+                return [int(v)]
+            return [int(item.strip()) for item in v.split(",") if item.strip()]
+        if isinstance(v, list):
+            return v
+        raise ValueError(
+            "owner_id must be an integer, a comma-separated string, or a list of integers"
         )
 
-        if not all([api_id, api_hash, bot_token, owner_id, database_uri]):
-            raise ValueError("Required environment variables are missing!")
-    except Exception as e:
-        raise RuntimeError(f"Configuration error: {e}")
+    model_config = SettingsConfigDict(
+        env_file="config.env" if os.path.exists("config.env") else ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
-config = Config()
+config = Settings()

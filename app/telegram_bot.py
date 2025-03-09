@@ -1,5 +1,3 @@
-import asyncio
-
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 from pyrogram import Client
@@ -13,7 +11,6 @@ from app.database.storage import (
     UsernameDoc,
 )
 from app.utils import logger
-from app.webhook import WebhookListener
 
 
 class TelegramBot:
@@ -51,11 +48,6 @@ class TelegramBot:
         )
         await self.client.start()
         logger.info("Bot client started.")
-
-        if config.webhook_server:
-            webhook = WebhookListener(config.saweria_stream_key, self.client)
-            asyncio.create_task(webhook.start())
-            logger.info("Using Webhook as server....")
 
         return self.client
 

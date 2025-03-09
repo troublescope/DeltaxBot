@@ -19,7 +19,7 @@ async def shutdown(loop):
 
 async def main():
     try:
-        logger.info("Initializing database connection")
+
         init_db = Database(logger)
         await init_db.start()
         logger.info("Database connection established")
