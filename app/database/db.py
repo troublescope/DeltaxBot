@@ -6,7 +6,7 @@ from beanie import init_beanie
 
 from app import config
 
-from .base import Chat, Stats
+from .base import Chat, Music, Stats
 
 
 class Database:
@@ -19,4 +19,6 @@ class Database:
     async def start(self):
         self.log.info("Initializing database connection...")
         client = motor.motor_asyncio.AsyncIOMotorClient(config.database_uri)
-        await init_beanie(database=client[self.name], document_models=[Chat, Stats])
+        await init_beanie(
+            database=client[self.name], document_models=[Chat, Stats, Music]
+        )

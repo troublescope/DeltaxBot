@@ -3,7 +3,7 @@ from typing import Optional
 
 from pyrogram import types
 
-from .base import Chat, Stats
+from .base import Chat, Music, Stats
 
 
 async def create_chat(
@@ -120,3 +120,29 @@ async def increment_messages(count: int = 1) -> Stats:
     stats.updated_at = datetime.utcnow()
     await stats.save()
     return stats
+
+
+async def add_music(message_id: int, url: str) -> Music:
+    record = Music(message_id=message_id, url=url)
+    await record.insert()
+    return record
+
+
+async def get_music(message_id: int) -> Optional[Music]:
+    record = await Music.find_one(Music.message_id == message_id)
+    return record
+
+
+async def update_music(
+    message_id: int, file_id: Optional[str] = None, url: Optional[str] = None
+) -> Optional[Music]:
+    record = await get_music_record(message_id)
+    if record:
+        if url is not None:
+            record.url = url
+        await record.save()
+    return record
+
+
+async def get_music_by_url(url: str) -> Optional[Music]:
+    return await Music.find_one(Music.url == url)

@@ -34,3 +34,12 @@ class Stats(Document):
 
     class Settings:
         name = "stats"
+
+
+class Music(Document):
+    message_id: int
+    url: str
+    created_at: datetime = datetime.utcnow()
+
+    class Settings:
+        name = "musics"
