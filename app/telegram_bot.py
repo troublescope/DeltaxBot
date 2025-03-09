@@ -15,7 +15,7 @@ from app.utils import logger
 
 class TelegramBot:
     def __init__(self):
-        self.name: str = "DeltaBot12"
+        self.name: str = "DeltaBot"
         self.client: Client = None
         self.storage = None  # Initialize storage later
 
