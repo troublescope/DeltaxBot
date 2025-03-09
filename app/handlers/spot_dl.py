@@ -33,8 +33,6 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
         await message.reply_text("Please provide a Spotify link or search query.")
         return
 
-    # Validate that the query looks like a Spotify link
-
     downloading_message = await message.reply_text(
         "Downloading music from the link...\nThis process may take a few minutes."
     )
