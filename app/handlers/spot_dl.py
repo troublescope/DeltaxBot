@@ -9,9 +9,6 @@ from app.helpers.spotify import spotify
 
 
 async def download_and_prepare_song(song: Song) -> tuple[Song, str]:
-    """
-    Download the song and return a tuple with the Song and the file path.
-    """
     try:
         song, path = await spotify.download(song)
         if not path:
@@ -21,22 +18,23 @@ async def download_and_prepare_song(song: Song) -> tuple[Song, str]:
         raise error
 
 
+def split_into_chunks(lst: list, chunk_size: int = 10):
+    for i in range(0, len(lst), chunk_size):
+        yield lst[i : i + chunk_size]
+
+
 @Client.on_message(filters.command("spotdl"))
 async def spotdl_cmd(client: Client, message: Message) -> None:
     if not message.text:
         return
-
     parts = message.text.split(" ", 1)
     song_query = parts[1] if len(parts) > 1 else ""
-
     if not song_query:
         await message.reply_text("Please provide a Spotify link or search query.")
         return
-
     downloading_message = await message.reply_text(
         "Downloading music from the link...\nThis process may take a few minutes."
     )
-
     try:
         songs: list[Song] = await spotify.search([song_query])
     except SpotifyException:
@@ -49,25 +47,18 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
             "An error occurred while processing your request. Please check the link and try again."
         )
         return
-
-    # Download all songs concurrently
     results = await asyncio.gather(
         *[download_and_prepare_song(song) for song in songs], return_exceptions=True
     )
-
-    # Prepare media group (list of InputMediaAudio)
     media_group = []
     for result in results:
         if isinstance(result, Exception):
-            # Optionally log the error
             continue
         song, path = result
         media_group.append(InputMediaAudio(media=path, caption=song.display_name))
-
     if media_group:
-        # Send as media group (Telegram allows up to 10 items per media group)
-        await client.send_media_group(chat_id=message.chat.id, media=media_group)
+        for chunk in split_into_chunks(media_group):
+            await client.send_media_group(chat_id=message.chat.id, media=chunk)
     else:
         await message.reply_text("No songs were downloaded successfully.")
-
     await downloading_message.delete()

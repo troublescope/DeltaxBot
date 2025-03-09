@@ -26,6 +26,7 @@ class Downloader(BaseDownloader):
         bundle_settings["output"] = str(
             AsyncPath(config.download_path).joinpath("spotdl")
         )
+        bundle_settings["cookie_file"] = "data/cookies.txt"
 
         super().__init__(bundle_settings)
 
