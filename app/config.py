@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     spotify_id: Optional[str] = ""
     spotify_secret: Optional[str] = ""
 
-    @field_validator(["owner_id", "devs_id"], mode="before")
+    @field_validator("owner_id", "devs_id", mode="before")
     def parse_id_list(cls, v: Union[int, str, List[int]]) -> List[int]:
         """
         Validates and parses the owner_id and devs_id fields, ensuring they are lists of integers.
