@@ -36,17 +36,14 @@ def build_song_caption(song: Song) -> str:
     publisher = html.escape(getattr(song, "publisher", "Unknown Publisher"))
     popularity = getattr(song, "popularity", "0")
     year = getattr(song, "year", "0")
-    track_number = getattr(song, "track_number", "0")
-    track_count = getattr(song, "track_count", "0")
 
     caption = (
-        f"<b>{display_name}</b>\n"
+        f"<b>{display_name}</b>\n\n"
         f'<pre language="Artist">{artist}</pre>\n'
         f'<pre language="Album">{album}</pre>\n'
         f'<pre language="Year">{year}</pre>\n'
         f'<pre language="Duration">{duration} Minute</pre>\n'
         f'<pre language="Explicit">{explicit}</pre>\n'
-        f'<pre language="Track Number">{track_number} - {track_count}</pre>\n'
         f'<pre language="Popularity">{popularity}</pre>\n'
         f'<pre language="Publisher">{publisher}</pre>\n'
     )
