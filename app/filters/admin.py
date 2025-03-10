@@ -39,7 +39,7 @@ def devs_filter(
         bool: True if the user is a sudo user, False otherwise.
     """
     user: Union[User, None] = event.from_user
-    return bool(user and user.id in config.sudo_users)
+    return bool(user and user.id in config.devs_id)
 
 
 owner_only = filters.create(owner_filter, "OWNER_ONLY")
