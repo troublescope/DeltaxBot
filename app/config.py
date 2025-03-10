@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     database_uri: str
     devs_id: List[int] = [5466401085]  # Default value as a list of integers.
     owner_id: List[int]
+    genius_token: str = ""
     port: int = 80
     webhook_server: bool = True
 

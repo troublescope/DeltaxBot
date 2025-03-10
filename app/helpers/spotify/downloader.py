@@ -27,6 +27,9 @@ class Downloader(BaseDownloader):
             AsyncPath(config.download_path).joinpath("spotdl")
         )
         bundle_settings["cookie_file"] = "data/cookies.txt"
+        bundle_settings["lyrics_providers"] = ["genius", "azlyrics", "musixmatch"]
+
+        bundle_settings["genius_token"] = config.genius_token
 
         super().__init__(bundle_settings)
 

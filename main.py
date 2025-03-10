@@ -8,8 +8,8 @@ try:
 except ImportError:
     uvloop_installed = False
 
+from app import bot
 from app.database import Database
-from app.telegram_bot import TelegramBot
 from app.utils.logger import logger
 
 
@@ -25,8 +25,8 @@ async def main():
         logger.info("Database connection established")
 
         logger.info("Starting bot client")
-        telebot = TelegramBot()
-        await telebot.start()
+
+        await bot.start()
         logger.info("Application started successfully")
     except Exception as e:
         logger.critical("Failed to start application: %s", e, exc_info=True)

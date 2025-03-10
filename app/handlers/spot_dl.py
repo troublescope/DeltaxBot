@@ -1,8 +1,9 @@
+import html
 import os
-from typing import List
+from typing import List, Tuple
 
-from pyrogram import Client, filters, types
-from pyrogram.types import Message
+from pyrogram import Client, filters
+from pyrogram.types import Message, ReplyParameters
 from spotdl import Song
 from spotipy.exceptions import SpotifyException
 
@@ -12,7 +13,7 @@ from app.helpers.spotify import spotify
 from app.utils import logger
 
 
-async def download_and_prepare_song(song: Song) -> tuple[Song, str]:
+async def download_and_prepare_song(song: Song) -> Tuple[Song, str]:
     try:
         song, path = await spotify.download(song)
         if not path:
@@ -22,12 +23,40 @@ async def download_and_prepare_song(song: Song) -> tuple[Song, str]:
         raise error
 
 
+def build_song_caption(song: Song) -> str:
+    """
+    Build a robust HTML caption for a song.
+    Uses html.escape() to ensure that any special characters are safely escaped.
+    """
+    display_name = html.escape(getattr(song, "display_name", "Unknown Title"))
+    artist = html.escape(getattr(song, "artist", "Unknown Artist"))
+    album = html.escape(getattr(song, "album_name", "Unknown Album"))
+    duration = getattr(song, "duration", "Unknown Duration")
+    explicit = getattr(song, "explicit", "No")
+    publisher = html.escape(getattr(song, "publisher", "Unknown Publisher"))
+    popularity = getattr(song, "popularity", "0")
+    copyright_text = html.escape(getattr(song, "copyright_text", ""))
+
+    caption = (
+        f"<b>{display_name}</b>\n"
+        f'<pre language="Artist">{artist}</pre>\n'
+        f'<pre language="Album">{album}</pre>\n'
+        f'<pre language="Duration">{duration}</pre>\n'
+        f'<pre language="Explicit">{explicit}</pre>\n'
+        f'<pre language="Publisher">{publisher}</pre>\n'
+        f'<pre language="Spotify Rank">{popularity}</pre>\n'
+        f'<pre language="Copyright">{copyright_text}</pre>'
+    )
+    return caption
+
+
 @Client.on_message(filters.command("spotdl"))
 async def spotdl_cmd(client: Client, message: Message) -> None:
-    # Get Spotify URL from message entities.
+    # Extract Spotify URL from the message entities if available.
     spotify_url = None
     if message.entities:
         for entity in message.entities:
+            # Entity can be a dict or a MessageEntity object.
             etype = entity.get("type") if isinstance(entity, dict) else entity.type
             if etype == "MessageEntityType.URL":
                 offset = (
@@ -41,7 +70,7 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
                     spotify_url = url_text
                     break
 
-    # Use the provided query or URL.
+    # Use the provided query (if any) or the URL extracted above.
     parts = message.text.split(" ", 1)
     song_query = parts[1] if len(parts) > 1 else spotify_url
     if not song_query:
@@ -66,9 +95,9 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
         )
         return
 
-    prev_message_id = message.id  # For reply chaining.
+    prev_message_id = message.id  # Used for reply chaining.
     for song in songs:
-        # Check if the song exists in the database.
+        # Check if this song already exists in the database.
         record = await get_music_by_url(song.url)
         if record and record.message_id:
             try:
@@ -80,9 +109,7 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
                         chat_id=message.chat.id,
                         from_chat_id=config.channel_log,
                         message_id=log_msg.id,
-                        reply_parameters=types.ReplyParameters(
-                            message_id=prev_message_id
-                        ),
+                        reply_parameters=ReplyParameters(message_id=prev_message_id),
                     )
                     prev_message_id = copied.id
                     continue
@@ -97,9 +124,12 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
             continue
 
         try:
-            # Send the song to the log channel.
+            # Build a robust caption for the song.
+            caption = build_song_caption(song)
             log_msg = await client.send_audio(
-                chat_id=config.channel_log, audio=path, caption=song.display_name
+                chat_id=config.channel_log,
+                audio=path,
+                caption=caption,
             )
             await add_music(message_id=log_msg.id, url=song.url)
         except Exception as e:
@@ -110,15 +140,27 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
                 os.remove(path)
 
         try:
-            # Forward the song to the user.
+            # Forward the sent audio message to the user.
             copied = await client.copy_message(
                 chat_id=message.chat.id,
                 from_chat_id=config.channel_log,
                 message_id=log_msg.id,
-                reply_parameters=types.ReplyParameters(message_id=prev_message_id),
+                reply_parameters=ReplyParameters(message_id=prev_message_id),
             )
             prev_message_id = copied.id
         except Exception as e:
             logger.error(f"Error copying {song.display_name} to user: {e}")
 
     await downloading_message.delete()
+
+
+if __name__ == "__main__":
+    # Create and run the client.
+    app = Client(
+        "my_account",
+        api_id=config.API_ID,
+        api_hash=config.API_HASH,
+        # Optionally set a global parse_mode if needed:
+        # parse_mode=types.ParseMode.HTML
+    )
+    app.run()

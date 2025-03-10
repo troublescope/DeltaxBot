@@ -7,11 +7,11 @@ from pyrogram.types import Message
 async def catbox_post(msg: Message | str) -> str:
     path = None
     if isinstance(msg, str):
-        path = await Client.download_media(msg)
+        path = await Client.download_media(message=msg)
     elif hasattr(msg, "media") and msg.media:
         media = getattr(msg, msg.media.value)
         if hasattr(media, "file_id") and media.file_id:
-            path = await Client.download_media(media.file_id)
+            path = await Client.download_media(file_id=media.file_id)
 
     if not path:
         raise ValueError("No valid media found to download.")
