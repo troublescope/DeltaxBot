@@ -19,7 +19,7 @@ from pyrogram.types import (
 )
 
 from app.filters import devs_only
-from app.helpers import catbox
+from app.helpers import catbox_post
 
 TASKS = {}
 
@@ -149,7 +149,7 @@ async def async_evaluate_func(
         "r": message.reply_to_message,
         "u": (message.reply_to_message or message).from_user,
         #
-        "catbox": catbox,
+        "catbox": catbox_post,
     }
 
     eval_code = message.text.split(maxsplit=1)[1]
