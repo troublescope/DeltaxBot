@@ -24,7 +24,7 @@ def owner_filter(
     return bool(user and user.id in config.owner_id)
 
 
-def sudo_filter(
+def devs_filter(
     _: filters.Filter, client: Client, event: Union[Message, CallbackQuery]
 ) -> bool:
     """
@@ -43,4 +43,4 @@ def sudo_filter(
 
 
 owner_only = filters.create(owner_filter, "OWNER_ONLY")
-sudo_only = filters.create(sudo_filter, "SUDO_ONLY")
+devs_only = filters.create(devs_filter, "DEVS_ONLY")
