@@ -45,6 +45,8 @@ idna==3.10
     #   yarl
 lazy-model==0.2.0
     # via beanie
+meval==2.5
+    # via deltax-bot (pyproject.toml)
 motor==3.7.0
     # via beanie
 multidict==6.1.0

@@ -1,31 +1,46 @@
 from typing import Union
 
-from pyrogram import Client, filters, types
+from pyrogram import Client, filters
+from pyrogram.types import CallbackQuery, Message, User
 
 from app import config
 
 
-def flt_owner_only(
-    flt: filters.Filter,
-    client: Client,
-    message: Union[types.Message, types.CallbackQuery],
+def owner_filter(
+    _: filters.Filter, client: Client, event: Union[Message, CallbackQuery]
 ) -> bool:
     """
-    Filter to allow only the owner(s) specified in config.owner_id.
+    Allow only messages or callback queries from owners.
 
     Args:
-        flt: The filter instance.
-        client: The Pyrogram Client instance.
-        message: The incoming message or callback query.
+        _ (filters.Filter): The filter instance (unused).
+        client (Client): The Pyrogram client instance.
+        event (Union[Message, CallbackQuery]): The incoming message or callback query.
 
     Returns:
-        bool: True if the message is from an owner, False otherwise.
+        bool: True if the user is an owner, False otherwise.
     """
-    user: types.User = message.from_user
-    if not user:
-        return False
-
-    return user.id in config.owner_id
+    user: Union[User, None] = event.from_user
+    return bool(user and user.id in config.owner_id)
 
 
-owner_only = filters.create(flt_owner_only, "OWNER_ONLY")
+def sudo_filter(
+    _: filters.Filter, client: Client, event: Union[Message, CallbackQuery]
+) -> bool:
+    """
+    Allow only messages or callback queries from sudo users.
+
+    Args:
+        _ (filters.Filter): The filter instance (unused).
+        client (Client): The Pyrogram client instance.
+        event (Union[Message, CallbackQuery]): The incoming event.
+
+    Returns:
+        bool: True if the user is a sudo user, False otherwise.
+    """
+    user: Union[User, None] = event.from_user
+    return bool(user and user.id in config.sudo_users)
+
+
+owner_only = filters.create(owner_filter, "OWNER_ONLY")
+sudo_only = filters.create(sudo_filter, "SUDO_ONLY")

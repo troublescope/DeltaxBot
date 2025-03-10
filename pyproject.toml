@@ -12,6 +12,7 @@ dependencies = [
     "beanie>=1.29.0",
     "colorlog>=6.9.0",
     "fastapi>=0.115.11",
+    "meval>=2.5",
     "pydantic>=2.10.6",
     "pydantic-settings>=2.8.1",
     "pyrotgfork>=2.2.9",

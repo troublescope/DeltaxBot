@@ -226,6 +226,7 @@ dependencies = [
     { name = "beanie" },
     { name = "colorlog" },
     { name = "fastapi" },
+    { name = "meval" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyrotgfork" },
@@ -243,6 +244,7 @@ requires-dist = [
     { name = "beanie", specifier = ">=1.29.0" },
     { name = "colorlog", specifier = ">=6.9.0" },
     { name = "fastapi", specifier = ">=0.115.11" },
+    { name = "meval", specifier = ">=2.5" },
     { name = "pydantic", specifier = ">=2.10.6" },
     { name = "pydantic-settings", specifier = ">=2.8.1" },
     { name = "pyrotgfork", specifier = ">=2.2.9" },
@@ -332,6 +334,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/47/9e/c60681be72f03845c209a86d5ce0404540c8d1818fc29bc64fc95220de5c/lazy-model-0.2.0.tar.gz", hash = "sha256:57c0e91e171530c4fca7aebc3ac05a163a85cddd941bf7527cc46c0ddafca47c", size = 8152 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0a/13/e37962a20f7051b2d6d286c3feb85754f9ea8c4cac302927971e910cc9f6/lazy_model-0.2.0-py3-none-any.whl", hash = "sha256:5a3241775c253e36d9069d236be8378288a93d4fc53805211fd152e04cc9c342", size = 13719 },
+]
+
+[[package]]
+name = "meval"
+version = "2.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a0/58/2bfffe5a6a1d3d7e9fe2888807a11d220f6cda11af0a41db1170ca9ae6b7/meval-2.5.tar.gz", hash = "sha256:a5aa481617f1fd07a5972076cd3aa14e38515ac84b3ff028efdf76371a856765", size = 2499 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/95/a9/0fab3521980ff8a5cba771cbca2e0bf1c713a57b576fb82cc30f1a095e66/meval-2.5-py3-none-any.whl", hash = "sha256:24430865001b5596864a7c28f423294edadaac57af9ab6964dda3eabc8762577", size = 3584 },
 ]
 
 [[package]]
