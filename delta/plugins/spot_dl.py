@@ -17,9 +17,9 @@ from pyrogram.types import (
 from spotdl import Song
 from spotipy.exceptions import SpotifyException
 
-from delta import config
+from delta import config, logger
 from delta.core.database.music_db import add_music, get_music_by_url
-from delta.utils import logger, spotify
+from delta.utils import spotify
 
 
 async def download_and_prepare_song(song: Song) -> Tuple[Song, str]:

@@ -11,8 +11,7 @@ from spotdl.utils.config import DOWNLOADER_OPTIONS
 from spotdl.utils.m3u import gen_m3u_files
 from spotdl.utils.search import songs_from_albums
 
-from delta import config
-from delta.utils.logger import logger
+from delta import config, logger
 
 
 class Downloader(BaseDownloader):

@@ -8,8 +8,8 @@ try:
 except ImportError:
     uvloop_installed = False
 
-from delta.core import deltabot, init_db
-from delta.utils import logger
+from delta import deltabot, logger
+from delta.core import init_db
 
 
 async def shutdown(loop):

@@ -1,7 +1,7 @@
 from pyrogram import Client
 
 from delta import config
-from delta.utils import logger
+from delta.logging import logger
 
 from .database.database_provider import async_session
 from .database.storage import PostgreSQLStorage

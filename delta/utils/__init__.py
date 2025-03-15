@@ -1,5 +1,4 @@
-__all__ = ["catbox_post", "logger", "spotify"]
+__all__ = ["catbox_post", "spotify"]
 
-from .logger import logger
 from .spotify import spotify
 from .network import catbox_post
