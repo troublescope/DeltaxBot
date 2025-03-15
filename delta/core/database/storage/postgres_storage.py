@@ -53,7 +53,7 @@ class UsernameModel(Base):
 
 class UpdateStateModel(Base):
     __tablename__ = "update_state"
-    id = Column(Integer, primary_key=True)
+    id = Column(BigInteger, primary_key=True)
     pts = Column(Integer, nullable=True)
     qts = Column(Integer, nullable=True)
     date = Column(Integer, nullable=True)
