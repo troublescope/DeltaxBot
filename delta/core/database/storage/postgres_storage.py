@@ -73,13 +73,12 @@ class PeerType(Enum):
     SUPERGROUP = "supergroup"
 
 
-def get_input_peer(peer: Dict) -> Any:
-    peer_id, access_hash, peer_type = peer["id"], peer["access_hash"], peer["type"]
-    if peer_type in {PeerType.USER.value, PeerType.BOT.value}:
+def get_input_peer(peer_id: int, access_hash: int, peer_type: str):
+    if peer_type in ["user", "bot"]:
         return raw.types.InputPeerUser(user_id=peer_id, access_hash=access_hash)
-    if peer_type == PeerType.GROUP.value:
+    if peer_type == "group":
         return raw.types.InputPeerChat(chat_id=-peer_id)
-    if peer_type in {PeerType.CHANNEL.value, PeerType.SUPERGROUP.value}:
+    if peer_type in ["channel", "supergroup"]:
         return raw.types.InputPeerChannel(
             channel_id=utils.get_channel_id(peer_id), access_hash=access_hash
         )
@@ -91,6 +90,7 @@ _UNSET = object()
 
 class PostgreSQLStorage(Storage):
     USERNAME_TTL = 8 * 60 * 60
+    VERSION = 5
 
     def __init__(self, name: str, async_session):
         self._session_id = name
@@ -123,6 +123,29 @@ class PostgreSQLStorage(Storage):
                 "user_id": session_obj.user_id,
                 "is_bot": session_obj.is_bot,
             }
+            await self.update()
+
+    async def update(self):
+        async with self.async_session() as session:
+            result = await session.execute(select(VersionModel))
+            version_obj = result.scalar_one_or_none()
+            if version_obj is None:
+                version_obj = VersionModel(number=self.VERSION)
+                session.add(version_obj)
+                await session.commit()
+                return
+            current_version = version_obj.number
+            if current_version == 1:
+                await session.execute(delete(PeerModel))
+                await session.commit()
+                current_version = 2
+            if current_version == 2:
+                await session.execute("ALTER TABLE sessions ADD COLUMN api_id INTEGER")
+                await session.commit()
+                current_version = 3
+            if current_version < self.VERSION:
+                version_obj.number = self.VERSION
+                await session.commit()
 
     async def save(self):
         await self.date(int(time.time()))
@@ -168,19 +191,45 @@ class PostgreSQLStorage(Storage):
                         session.add(UsernameModel(id=peer_id, username=uname))
             await session.commit()
 
-    async def update_state(self, state: Optional[Tuple[int, int, int, int]] = None):
-        if state is None:
-            async with self.async_session() as session:
-                state_obj = await session.get(UpdateStateModel, 1)
+    async def update_usernames(self, usernames: List[Tuple[int, str]]):
+        int(time.time())
+        async with self.async_session() as session:
+            for peer_id, username in usernames:
+                await session.execute(
+                    delete(UsernameModel).where(UsernameModel.id == peer_id)
+                )
+                session.add(UsernameModel(id=peer_id, username=username))
+            await session.commit()
+
+    async def update_state(
+        self, state: Optional[Tuple[int, int, int, int, int]] = None
+    ) -> Optional[Tuple[int, int, int, int, int]]:
+        async with self.async_session() as session:
+            if state is None:
+                result = await session.execute(
+                    select(UpdateStateModel).where(UpdateStateModel.id == 1)
+                )
+                state_obj = result.scalar_one_or_none()
                 if state_obj is None:
                     return None
-                return (state_obj.pts, state_obj.qts, state_obj.date, state_obj.seq)
-        pts, qts, date_val, seq = state
-        async with self.async_session() as session:
-            state_obj = await session.get(UpdateStateModel, 1)
+                return (
+                    state_obj.id,
+                    state_obj.pts,
+                    state_obj.qts,
+                    state_obj.date,
+                    state_obj.seq,
+                )
+            if isinstance(state, int):
+                state_obj = await session.get(UpdateStateModel, state)
+                if state_obj:
+                    await session.delete(state_obj)
+                await session.commit()
+                return None
+            state_id, pts, qts, date_val, seq = state
+            state_obj = await session.get(UpdateStateModel, state_id)
             if state_obj is None:
                 state_obj = UpdateStateModel(
-                    id=1, pts=pts, qts=qts, date=date_val, seq=seq
+                    id=state_id, pts=pts, qts=qts, date=date_val, seq=seq
                 )
                 session.add(state_obj)
             else:
@@ -189,20 +238,40 @@ class PostgreSQLStorage(Storage):
                 state_obj.date = date_val
                 state_obj.seq = seq
             await session.commit()
-        return state
+            return state
+
+    async def remove_state(self, state_id: int):
+        async with self.async_session() as session:
+            state_obj = await session.get(UpdateStateModel, state_id)
+            if state_obj:
+                await session.delete(state_obj)
+            await session.commit()
+
+    async def get_version(self) -> Optional[int]:
+        async with self.async_session() as session:
+            result = await session.execute(select(VersionModel))
+            version_obj = result.scalar_one_or_none()
+            if version_obj is None:
+                return None
+            return version_obj.number
+
+    async def set_version(self, number: int):
+        async with self.async_session() as session:
+            result = await session.execute(select(VersionModel))
+            version_obj = result.scalar_one_or_none()
+            if version_obj is None:
+                version_obj = VersionModel(number=number)
+                session.add(version_obj)
+            else:
+                version_obj.number = number
+            await session.commit()
 
     async def get_peer_by_id(self, peer_id: int):
         async with self.async_session() as session:
             peer_obj = await session.get(PeerModel, peer_id)
             if peer_obj is None:
                 raise KeyError(f"ID not found: {peer_id}")
-            return get_input_peer(
-                {
-                    "id": peer_obj.id,
-                    "access_hash": peer_obj.access_hash,
-                    "type": peer_obj.type,
-                }
-            )
+            return get_input_peer(peer_obj.id, peer_obj.access_hash, peer_obj.type)
 
     async def get_peer_by_username(self, username: str):
         async with self.async_session() as session:
@@ -218,13 +287,7 @@ class PostgreSQLStorage(Storage):
             peer_obj = row[0]
             if int(time.time() - peer_obj.last_update_on) > self.USERNAME_TTL:
                 raise KeyError(f"Username expired: {username}")
-            return get_input_peer(
-                {
-                    "id": peer_obj.id,
-                    "access_hash": peer_obj.access_hash,
-                    "type": peer_obj.type,
-                }
-            )
+            return get_input_peer(peer_obj.id, peer_obj.access_hash, peer_obj.type)
 
     async def get_peer_by_phone_number(self, phone_number: str):
         async with self.async_session() as session:
@@ -234,13 +297,7 @@ class PostgreSQLStorage(Storage):
             peer_obj = result.scalars().first()
             if peer_obj is None:
                 raise KeyError(f"Phone number not found: {phone_number}")
-            return get_input_peer(
-                {
-                    "id": peer_obj.id,
-                    "access_hash": peer_obj.access_hash,
-                    "type": peer_obj.type,
-                }
-            )
+            return get_input_peer(peer_obj.id, peer_obj.access_hash, peer_obj.type)
 
     async def _accessor(self, column: str, value: Any = _UNSET):
         async with self.async_session() as session:

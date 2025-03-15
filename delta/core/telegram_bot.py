@@ -27,6 +27,7 @@ class DeltaBot:
             bot_token=config.bot_token,
             plugins={"root": "delta.plugins"},
             storage_engine=self.storage,
+            skip_updates=False,
             workdir="delta",
         )
         await self.client.start()
