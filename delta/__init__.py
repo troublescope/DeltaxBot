@@ -1,1 +1,3 @@
-from .core import config 
+__all__ = ["config"]
+
+from .config import config 

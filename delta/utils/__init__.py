@@ -1,3 +1,4 @@
-__all__ = ["logger"]
+__all__ = ["logger", "spotify"]
 
 from .logger import logger
+from .spotify import spotify
