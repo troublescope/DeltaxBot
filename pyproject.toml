@@ -5,12 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiohttp>=3.11.13",
     "aiopath>=0.7.7",
     "aiorun>=2025.1.1",
     "asyncer>=0.0.8",
     "asyncpg>=0.30.0",
     "colorlog>=6.9.0",
-    "psycopg2>=2.9.10",
+    "meval>=2.5",
     "pyrotgfork>=2.2.9",
     "python-dotenv>=1.0.1",
     "spotdl>=4.2.11",
