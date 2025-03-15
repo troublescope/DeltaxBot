@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# env files
+.env
+
+# logs
+logs/
+payload_logs.txt
+
+# Pyrogram Sessions
+*session*
+# Downloads
+downloads/
+data/
