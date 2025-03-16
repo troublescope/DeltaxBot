@@ -19,7 +19,7 @@ from pyrogram.types import (
 )
 
 from delta.filters import owner_only
-from delta.utils import catbox_post
+from delta.utils import upload_cdn
 
 TASKS = {}
 
@@ -149,7 +149,7 @@ async def async_evaluate_func(
         "r": message.reply_to_message,
         "u": (message.reply_to_message or message).from_user,
         #
-        "catbox": catbox_post,
+        "upload_cdn": upload_cdn,
     }
 
     eval_code = message.text.split(maxsplit=1)[1]

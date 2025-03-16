@@ -1,37 +1,34 @@
 import aiohttp
-from pyrogram.types import Message
-
-from delta import deltabot
 
 
-async def catbox_post(msg: Message | str) -> str:
-    file = None
+async def upload_cdn(file_path):
+    url = "https://cdn.maelyn.tech/api/upload"
+    form = aiohttp.FormData()
+    # Open the file so it remains open during the upload
+    f = open(file_path, "rb")
+    form.add_field(
+        "file",
+        f,
+        filename=file_path.split("/")[-1],
+        content_type="application/octet-stream",
+    )
 
-    if isinstance(msg, str):
-        file = await deltabot.client.download_media(message=msg, in_memory=True)
-    elif hasattr(msg, "media") and msg.media:
-        file = await deltabot.client.download_media(message=msg, in_memory=True)
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, data=form) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    url_value = data["data"].get("url")
+                    size_value = data["data"].get("size")
+                    expired_value = data["data"].get("expired")
 
-    if not file:
-        raise ValueError("No valid media found to download.")
+                    return url_value, size_value, expired_value
 
-    # Ensure the file pointer is at the beginning
-    file.seek(0)
-
-    # Extract filename from the file object
-    filename = getattr(file, "name", "upload.dat")
-
-    async with aiohttp.ClientSession() as client:
-        form = aiohttp.FormData()
-        form.add_field("reqtype", "fileupload")
-        form.add_field(
-            "fileToUpload",
-            file,
-            filename=filename,
-            content_type="application/octet-stream",
-        )
-
-        async with client.post("https://catbox.moe/user/api.php", data=form) as resp:
-            resp.raise_for_status()
-            url = await resp.text()
-            return url.strip()
+                else:
+                    text = await response.text()
+                    return text
+        except Exception as e:
+            return str(e)
+        finally:
+            # Close the file after the upload is complete
+            f.close()
