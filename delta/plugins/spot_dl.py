@@ -1,4 +1,5 @@
 import html
+import logging
 import os
 import uuid
 from typing import List, Tuple
@@ -17,9 +18,11 @@ from pyrogram.types import (
 from spotdl import Song
 from spotipy.exceptions import SpotifyException
 
-from delta import config, logger
+from delta import config
 from delta.core.database.music_db import add_music, get_music_by_url
 from delta.utils import spotify
+
+logger = logging.getLogger("DeltaX")
 
 
 async def download_and_prepare_song(song: Song) -> Tuple[Song, str]:

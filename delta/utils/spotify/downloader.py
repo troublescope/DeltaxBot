@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from asyncio import Semaphore
 from datetime import datetime
 
@@ -11,7 +12,9 @@ from spotdl.utils.config import DOWNLOADER_OPTIONS
 from spotdl.utils.m3u import gen_m3u_files
 from spotdl.utils.search import songs_from_albums
 
-from delta import config, logger
+from delta import config
+
+logger = logging.getLogger("DeltaX")
 
 
 class Downloader(BaseDownloader):

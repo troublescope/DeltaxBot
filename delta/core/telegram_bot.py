@@ -1,13 +1,16 @@
+import logging
 from datetime import datetime
 
 from pyrogram import Client
 
 from delta import config
-from delta.core.database.system_db import get_system
-from delta.logging import logger
+from delta.core.database.system_db import clear_system, get_system
 
+from ..utils import format_duration
 from .database.database_provider import async_session
 from .database.storage import PostgreSQLStorage
+
+logger = logging.getLogger("DeltaX")
 
 
 class DeltaBot:
@@ -33,18 +36,23 @@ class DeltaBot:
         )
         await self.client.start()
         logger.info("Bot client started.")
+
         system = await get_system(self.client.me.id)
         if system:
-            duration = datetime.utcnow() - system.last_restart
+            duration_seconds = int(
+                (datetime.now() - system.last_restart).total_seconds()
+            )
+            duration_text = format_duration(duration_seconds)
+
             text = (
-                f"System Check Point!\n"
-                f"Restart Duration: {duration}\n"
-                f"Last Updated: {system.last_system_update.strftime('%Y-%m-%d %H:%M:%S')}"
+                f"**System Restart Completed!**\n"
+                f"Restart Duration: `{duration_text}`"
             )
 
-            await self.client.edit_message_text(
+            msg = await self.client.edit_message_text(
                 chat_id=system.chat_id, message_id=system.restart_id, text=text
             )
+            await clear_system(self.client.me.id)
 
         return self.client
 

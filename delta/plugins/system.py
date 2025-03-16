@@ -26,19 +26,14 @@ async def restart_handler(client: Client, message: types.Message):
             repo.heads.master.checkout(True)
 
         restart_msg = await message.reply("Repository updated. Restarting bot...")
-        await update_system(
-            system_id=client.me.id,
-            chat_id=message.chat.id,
-            new_restart_id=restart_msg.id,
-            new_last_restart=datetime.utcnow(),
-        )
     else:
         restart_msg = await message.reply("**Restarting bot...**")
-        await update_system(
-            system_id=client.me.id,
-            chat_id=message.chat.id,
-            new_restart_id=restart_msg.id,
-            new_last_restart=datetime.utcnow(),
-        )
+
+    await update_system(
+        system_id=client.me.id,
+        chat_id=message.chat.id,
+        new_restart_id=restart_msg.id,
+        new_last_restart=datetime.now(),
+    )
 
     os.execv(sys.executable, [sys.executable] + sys.argv)
