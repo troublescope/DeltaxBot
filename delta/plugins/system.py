@@ -33,7 +33,7 @@ async def restart_handler(client: Client, message: types.Message):
             new_last_restart=datetime.utcnow(),
         )
     else:
-        restart_msg = await message.reply("Restarting bot...")
+        restart_msg = await message.reply("**Restarting bot...**")
         await update_system(
             system_id=client.me.id,
             chat_id=message.chat.id,
