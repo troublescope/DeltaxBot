@@ -28,11 +28,18 @@ class Downloader(BaseDownloader):
         bundle_settings["output"] = str(
             AsyncPath(config.download_path).joinpath("spotdl")
         )
-        bundle_settings["cookie_file"] = "data/cookies.txt"
+
         bundle_settings["lyrics_providers"] = ["genius", "azlyrics", "musixmatch"]
 
         bundle_settings["genius_token"] = config.genius_token
-        bundle_settings["bitrate"] = "320K"
+        bundle_settings["bitrate"] = "disable"
+
+        bundle_settings["format"] = "m4a"
+        cookie_path = AsyncPath("data/cookies.txt")
+        bundle_settings["cookie_file"] = str(cookie_path)
+        bundle_settings["yt_dlp_args"] = (
+            f"--format bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best --extractor-args youtube:cookie={str(cookie_path)}"
+        )
 
         super().__init__(bundle_settings)
 

@@ -68,6 +68,7 @@ logger = setup_logging()
 
 
 async def shutdown(loop):
+    await deltabot.stop()
     logger.info("Graceful shutdown completed")
 
 

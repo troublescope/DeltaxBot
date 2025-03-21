@@ -320,7 +320,7 @@ requires-dist = [
     { name = "meval", specifier = ">=2.5" },
     { name = "pyrotgfork", specifier = ">=2.2.9" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "spotdl", specifier = ">=4.2.11" },
+    { name = "spotdl", git = "https://github.com/Kyrluckechuck/spotify-downloader?rev=fix-yt-dlp-memory-leak" },
     { name = "sqlalchemy", specifier = ">=2.0.39" },
     { name = "tgcrypto", specifier = ">=1.2.5" },
     { name = "uvloop", specifier = ">=0.21.0" },
@@ -552,11 +552,11 @@ wheels = [
 
 [[package]]
 name = "platformdirs"
-version = "4.3.6"
+version = "4.3.7"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/13/fc/128cc9cb8f03208bdbf93d3aa862e16d376844a14f9a0ce5cf4507372de4/platformdirs-4.3.6.tar.gz", hash = "sha256:357fb2acbc885b0419afd3ce3ed34564c13c9b95c89360cd9563f73aa5e2b907", size = 21302 }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/2d/7d512a3913d60623e7eb945c6d1b4f0bddf1d0b7ada5225274c87e5b53d1/platformdirs-4.3.7.tar.gz", hash = "sha256:eb437d586b6a0986388f0d6f74aa0cde27b48d0e3d66843640bfb6bdcdb6e351", size = 21291 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3c/a6/bc1012356d8ece4d66dd75c4b9fc6c1f6650ddd5991e421177d9f8f671be/platformdirs-4.3.6-py3-none-any.whl", hash = "sha256:73e575e1408ab8103900836b97580d5307456908a03e92031bab39e4554cc3fb", size = 18439 },
+    { url = "https://files.pythonhosted.org/packages/6d/45/59578566b3275b8fd9157885918fcd0c4d74162928a5310926887b856a51/platformdirs-4.3.7-py3-none-any.whl", hash = "sha256:a03875334331946f13c549dbd8f4bac7a13a50a895a0eb1e8c6a8ace80d40a94", size = 18499 },
 ]
 
 [[package]]
@@ -894,7 +894,7 @@ wheels = [
 [[package]]
 name = "spotdl"
 version = "4.2.11"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/Kyrluckechuck/spotify-downloader?rev=fix-yt-dlp-memory-leak#dedb04b4a31dd2599ea8c2ae2f86cb757231609f" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "fastapi" },
@@ -914,10 +914,6 @@ dependencies = [
     { name = "websockets" },
     { name = "yt-dlp" },
     { name = "ytmusicapi" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0a/82/9d8995a96ee1ead62d45dc2709175b50b70b4efaff009c34af6df89c1a60/spotdl-4.2.11.tar.gz", hash = "sha256:4325588e2d3032ced7c479ed3e2082f3c51360e756d69439fc35e971d99910fa", size = 91084 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/16/dc/a4552734c86aee07d1733f508b7543e0ad91288f6b1f2c87efa10dbb50c8/spotdl-4.2.11-py3-none-any.whl", hash = "sha256:d736ecd57e33659174806e0106f2231bac4d2f30d99cd4e7127d9a9c42bffd92", size = 116057 },
 ]
 
 [[package]]
