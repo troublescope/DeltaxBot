@@ -3,7 +3,7 @@ from pyrogram import Client, filters, types
 from delta.utils import gemini_chat
 
 
-@Client.on_message(filters.mentioned | filters.command(["ai", "delta"]))
+@Client.on_message(filters.mentioned | filters.command(["ai", "delta"]), group=10)
 async def chatai(client: Client, message: types.Message) -> None:
     if message.command:
         text = " ".join(message.command[1:]) if len(message.command) > 1 else ""
