@@ -34,6 +34,9 @@ class Settings:
         self.spotify_secret: Optional[str] = self._get_env_var(
             "SPOTIFY_SECRET", str, optional=True, default=""
         )
+        self.gemini_api_key: Optional[str] = self._get_env_var(
+            "GEMINI_API_KEY", str, default=""
+        )
 
     def _get_env_var(
         self,

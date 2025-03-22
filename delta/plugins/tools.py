@@ -21,7 +21,7 @@ from pyrogram.types import (
 )
 
 from delta.filters import owner_only
-from delta.utils import upload_cdn
+from delta.utils import gemini_chat, upload_cdn
 
 # Global persistent dictionary for storing variables between eval calls.
 var_dict = {}
@@ -143,6 +143,7 @@ async def async_evaluate_func(
             "r": message.reply_to_message,
             "u": (message.reply_to_message or message).from_user,
             "upload_cdn": upload_cdn,
+            "gemini": gemini_chat,
         }
     )
     if "__builtins__" not in eval_vars:
