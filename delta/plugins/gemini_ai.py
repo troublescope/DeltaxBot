@@ -11,8 +11,9 @@ async def chatai(client: Client, message: types.Message) -> None:
         text = message.text or ""
 
     target_user = (
-        message.reply_to_message.from_user
-        if message.reply_to_message and not message.reply_to_message.from_user.is_self
+        message.reply_to_message.reply_to_message.from_user
+        if message.reply_to_message.reply_to_message
+        and not message.reply_to_message.from_user.is_self
         else message.from_user
     )
 
