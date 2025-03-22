@@ -1,19 +1,49 @@
 import asyncio
-from typing import Any, Dict, Optional
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 from google import genai
 from google.genai import types
+from PIL import Image
 
 from delta import config
 
+# Define types for better type hinting
+T = TypeVar("T")
+ImageType = Union[str, Image.Image]
+
 # Define system instruction as a global constant
 SYSTEM_INSTRUCTION = """You are a friendly and helpful assistant.
-Ensure your answers are complete, unless the user requests a more concise approach.
-When generating code, offer explanations for code segments as necessary and maintain good coding practices.
-When presented with inquiries seeking information, provide answers that reflect a deep understanding of the field, guaranteeing their correctness.
-For simple queries make an simple answer too.
-For any non-english queries, respond in the same language as the prompt unless otherwise specified by the user.
-For prompts involving reasoning, provide a clear explanation of each step in the reasoning process before presenting the final answer."""
+Provide complete answers unless the user requests a concise response. Keep simple answers short.
+When generating code, follow best practices and include explanations when necessary.
+Ensure all responses are factually correct and well-structured.
+Respond all non English queries must be same language as the user’s query unless instructed otherwise.
+For reasoning tasks, explain the thought process before giving the final answer.
+Maintain a professional yet approachable tone."""
+
+IMAGE_PROMPT = "Analyze the given image and provide a brief summary of its key elements. Identify the main objects, colors, and any visible text. If people are present, mention their actions or expressions. Keep the response short and clear."
+
+
+def error_handler(func: Callable[..., T]) -> Callable[..., T]:
+    """
+    Decorator to handle exceptions in async functions with consistent error messages.
+
+    Args:
+        func: The async function to wrap with error handling.
+
+    Returns:
+        Wrapped function with error handling.
+    """
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> T:
+        try:
+            return await func(*args, **kwargs)
+        except Exception as e:
+            operation = func.__name__.replace("_", " ")
+            raise Exception(f"Failed to {operation}: {str(e)}") from e
+
+    return cast(Callable[..., T], wrapper)
 
 
 class GeminiAIChat:
@@ -22,6 +52,12 @@ class GeminiAIChat:
 
     Provides a simple interface for sending messages to Gemini models
     with support for both API key authentication and Vertex AI integration.
+
+    Attributes:
+        model (str): The Gemini model name to use for generating content.
+        instruction (Optional[str]): The system instruction to guide model behavior.
+        client (genai.Client): The Google GenAI client instance.
+        chat (Optional[Any]): The active chat session.
     """
 
     def __init__(
@@ -35,26 +71,27 @@ class GeminiAIChat:
         http_options: Optional[Dict[str, Any]] = None,
     ):
         """
-        Initialize an asynchronous Gemini chat client.
+        Initialize the Gemini AI chat client.
 
         Args:
-            model: The Gemini model identifier to use (e.g., "gemini-1.5-flash")
-            instruction: Optional system instruction to guide model behavior
-            api_key: Google API key for direct Gemini API access
-            vertexai: Whether to use Vertex AI (True) or direct API access (False)
-            project: Google Cloud project ID (required if vertexai=True)
-            location: Google Cloud region (required if vertexai=True)
-            http_options: Additional HTTP options for the client
+            model: The Gemini model name to use.
+            instruction: Optional system instruction to guide model behavior.
+            api_key: Google API key for authentication.
+            vertexai: Whether to use Vertex AI instead of direct API access.
+            project: Google Cloud project ID (required for Vertex AI).
+            location: Google Cloud region (required for Vertex AI).
+            http_options: Additional HTTP options for the client.
 
         Raises:
-            ValueError: If vertexai is True but project or location is missing
+            ValueError: If authentication parameters are incomplete.
         """
+        # Validate authentication parameters
         if vertexai and (not project or not location):
             raise ValueError("Project and location are required when using Vertex AI")
-
         if not vertexai and not api_key:
             raise ValueError("API key is required when not using Vertex AI")
 
+        # Initialize client based on authentication method
         if vertexai:
             self.client = genai.Client(
                 vertexai=True,
@@ -67,80 +104,117 @@ class GeminiAIChat:
 
         self.model = model
         self.instruction = instruction
-        self.chat = None
-        # Create the chat session synchronously during initialization
-        self._create_chat()
+        self.chat = None  # Will be created asynchronously when first used
 
-    def _create_chat(self) -> None:
+    @error_handler
+    async def _create_chat(self) -> None:
         """
-        Create a new chat session with the specified configuration synchronously.
-
-        Raises:
-            Exception: If chat initialization fails
+        Create a new chat session asynchronously with the specified configuration.
         """
-        try:
-            cfg = (
-                types.GenerateContentConfig(system_instruction=self.instruction)
-                if self.instruction
-                else None
-            )
-            # Use the synchronous API instead of the async one
-            self.chat = self.client.chats.create(model=self.model, config=cfg)
-        except Exception as e:
-            raise Exception(f"Failed to initialize chat: {str(e)}")
+        cfg = (
+            types.GenerateContentConfig(system_instruction=self.instruction)
+            if self.instruction
+            else None
+        )
+        self.chat = self.client.aio.chats.create(model=self.model, config=cfg)
 
+    @error_handler
     async def send(self, message: str) -> str:
         """
-        Send a message and return the model's response.
+        Send a message and return the model's response asynchronously.
 
         Args:
-            message: The text message to send to the model
+            message: Text message to send to the model.
 
         Returns:
-            The text response from the model
-
-        Raises:
-            Exception: If sending the message fails
+            Text response from the model.
         """
-        try:
-            if not self.chat:
-                self._create_chat()
+        if not self.chat:
+            await self._create_chat()
+        response = await self.chat.send_message(message)
+        return response.text
 
-            # Use loop.run_in_executor to run the blocking send_message in a thread pool
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None, lambda: self.chat.send_message(message)
-            )
-            return response.text
-        except Exception as e:
-            raise Exception(f"Failed to send message: {str(e)}")
-
+    @error_handler
     async def set_instruction(self, instruction: str) -> None:
         """
-        Update the system instruction and reinitialize the chat session.
+        Update the system instruction and recreate the chat session asynchronously.
 
         Args:
-            instruction: The new system instruction to use
+            instruction: The new system instruction.
+        """
+        self.instruction = instruction
+        await self._create_chat()
+
+    @error_handler
+    async def vision(
+        self,
+        image: ImageType,
+        prompt: str = IMAGE_PROMPT,
+        tools: Optional[List[Callable]] = None,
+    ) -> str:
+        """
+        Generate content using the Gemini Vision model with an image input.
+
+        Args:
+            image: Either a path to an image file or a PIL Image object.
+            prompt: The text prompt to accompany the image (defaults to IMAGE_PROMPT).
+            tools: Optional list of tools to use with the model.
+
+        Returns:
+            Text response from the model based on the image analysis.
+        """
+        loop = asyncio.get_running_loop()
+
+        # Handle different image input types
+        image_obj = image
+        if isinstance(image, str):
+            image_obj = await loop.run_in_executor(None, self._open_image, image)
+
+        response = await self.client.aio.models.generate_content(
+            model=self.model,
+            contents=[prompt, image_obj],
+        )
+        return response.text
+
+    def _open_image(self, image_path: str) -> Image.Image:
+        """
+        Open an image using Pillow and return a copy of the image instance.
+
+        Args:
+            image_path: Path to the image file.
+
+        Returns:
+            A PIL Image object.
 
         Raises:
-            Exception: If updating the instruction fails
+            FileNotFoundError: If the image file doesn't exist.
+            PIL.UnidentifiedImageError: If the file is not a valid image.
         """
         try:
-            self.instruction = instruction
-            self._create_chat()
+            with Image.open(image_path) as img:
+                return img.copy()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Image file not found: {image_path}")
         except Exception as e:
-            raise Exception(f"Failed to update instruction: {str(e)}")
+            raise ValueError(f"Failed to open image: {str(e)}")
 
 
 class ChatManager:
     """
-    Manager for handling multiple user chat sessions.
+    Manager for handling user chat sessions.
+
+    Maintains a dictionary of chat sessions indexed by user ID and provides
+    methods to create, retrieve, and remove chat sessions.
+
+    Attributes:
+        user_chats (Dict[int, GeminiAIChat]): Dictionary mapping user IDs to chat sessions.
     """
 
     def __init__(self):
-        """Initialize an empty dictionary of user chat sessions."""
+        """Initialize an empty dictionary for user chat sessions."""
         self.user_chats: Dict[int, GeminiAIChat] = {}
 
+    @error_handler
     async def get_chat(
         self,
         user_id: int,
@@ -150,27 +224,28 @@ class ChatManager:
         vertexai: bool = False,
         project: Optional[str] = None,
         location: Optional[str] = None,
+        http_options: Optional[Dict[str, Any]] = None,
     ) -> GeminiAIChat:
         """
         Get or create a chat session for a specific user.
 
         Args:
-            user_id: Unique identifier for the user
-            model: The Gemini model to use
-            instruction: Default system instruction
-            api_key: Google API key
-            vertexai: Whether to use Vertex AI
-            project: Google Cloud project ID
-            location: Google Cloud region
+            user_id: Unique identifier for the user.
+            model: Gemini model to use.
+            instruction: Default system instruction.
+            api_key: Google API key.
+            vertexai: Whether to use Vertex AI.
+            project: Google Cloud project ID.
+            location: Google Cloud region.
+            http_options: Additional HTTP options for the client.
 
         Returns:
-            An GeminiAIChat instance for the specified user
+            GeminiAIChat instance for the specified user.
 
         Raises:
-            ValueError: If required authentication parameters are missing
+            ValueError: If authentication parameters are incomplete.
         """
         if user_id not in self.user_chats:
-            # Use config.gemini_api_key if api_key is not provided
             if api_key is None:
                 api_key = config.gemini_api_key
 
@@ -186,6 +261,7 @@ class ChatManager:
                 vertexai=vertexai,
                 project=project,
                 location=location,
+                http_options=http_options,
             )
 
         return self.user_chats[user_id]
@@ -195,10 +271,10 @@ class ChatManager:
         Remove a user's chat session.
 
         Args:
-            user_id: Unique identifier for the user
+            user_id: Unique identifier for the user.
 
         Returns:
-            True if the session was removed, False if it didn't exist
+            True if the session was removed, False if it didn't exist.
         """
         if user_id in self.user_chats:
             del self.user_chats[user_id]
@@ -206,4 +282,5 @@ class ChatManager:
         return False
 
 
+# Create a singleton instance of the ChatManager
 gemini_chat = ChatManager()
