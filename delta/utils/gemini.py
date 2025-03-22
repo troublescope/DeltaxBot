@@ -21,7 +21,7 @@ Respond all non English queries must be same language as the user’s query unle
 For reasoning tasks, explain the thought process before giving the final answer.
 Maintain a professional yet approachable tone."""
 
-IMAGE_PROMPT = "Analyze the given image and provide a brief summary of its key elements. Identify the main objects, colors, and any visible text. If people are present, mention their actions or expressions. Keep the response short and clear."
+IMAGE_PROMPT = "Analyze the given image and provide a brief summary of its key elements. Identify the main objects, colors, and any visible text. If people are present, mention their actions or expressions. Keep the response short and clear. Respond all non English queries must be same language as the user’s query unless instructed otherwise."
 
 
 def error_handler(func: Callable[..., T]) -> Callable[..., T]:
@@ -104,7 +104,7 @@ class GeminiAIChat:
 
         self.model = model
         self.instruction = instruction
-        self.chat = None  # Will be created asynchronously when first used
+        self.chat = None
 
     @error_handler
     async def _create_chat(self) -> None:
