@@ -131,8 +131,15 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
             continue
         try:
             caption = build_song_caption(song)
+            thumb = await spotify.download_thumbnail(song)
             log_msg = await client.send_audio(
-                chat_id=config.channel_log, audio=path, caption=caption
+                chat_id=config.channel_log,
+                audio=path,
+                caption=caption,
+                title=song.name,
+                performer=song.artist,
+                duration=int(song.duration),
+                thumb=thumb,
             )
             await add_music(message_id=log_msg.id, url=song.url)
         except Exception as e:
