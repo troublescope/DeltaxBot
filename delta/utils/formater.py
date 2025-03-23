@@ -142,16 +142,3 @@ def calculate_transfer_stats(current: int, total: int, elapsed_time: float):
         eta_seconds = (total - current) / speed
 
     return speed, eta_seconds
-
-
-def human_readable_bytes(
-    value: Union[int, float], digits: int = 2, delim: str = "", postfix: str = ""
-) -> str:
-    chosen_unit = "B"
-    for unit in ("KiB", "MiB", "GiB", "TiB"):
-        if value > 1000:
-            value /= 1024
-            chosen_unit = unit
-        else:
-            break
-    return f"{value:.{digits}f}" + delim + chosen_unit + postfix
