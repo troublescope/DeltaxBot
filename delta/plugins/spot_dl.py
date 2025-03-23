@@ -21,6 +21,7 @@ from spotipy.exceptions import SpotifyException
 
 from delta import config
 from delta.core.database.music_db import add_music, get_music_by_url
+from delta.helpers.progress import progress_func
 from delta.utils import spotify
 
 logger = logging.getLogger("DeltaX")
