@@ -34,7 +34,7 @@ class Downloader(BaseDownloader):
         bundle_settings["genius_token"] = config.genius_token
         bundle_settings["bitrate"] = "disable"
 
-        bundle_settings["format"] = "mp3"
+        bundle_settings["format"] = "m4a"
         cookie_path = AsyncPath("data/cookies.txt")
         bundle_settings["cookie_file"] = str(cookie_path)
         bundle_settings["yt_dlp_args"] = (
@@ -43,7 +43,7 @@ class Downloader(BaseDownloader):
 
         super().__init__(bundle_settings)
 
-        self.semaphore = Semaphore(10)
+        self.semaphore = Semaphore(5)
 
     async def download_song(self, song: Song) -> tuple[Song, AsyncPath | None]:
         """
