@@ -34,7 +34,7 @@ class Downloader(BaseDownloader):
         bundle_settings["genius_token"] = config.genius_token
         bundle_settings["bitrate"] = "disable"
 
-        bundle_settings["format"] = "m4a"
+        bundle_settings["format"] = "mp3"
         cookie_path = AsyncPath("data/cookies.txt")
         bundle_settings["cookie_file"] = str(cookie_path)
         bundle_settings["yt_dlp_args"] = (
@@ -103,7 +103,7 @@ class Downloader(BaseDownloader):
                 logger.error(error)
 
         if self.settings["save_errors"]:
-            # Using aiopath for async file operations
+
             error_path = AsyncPath(self.settings["save_errors"])
             async with await error_path.open("a") as error_file:
                 if len(self.errors) > 0:

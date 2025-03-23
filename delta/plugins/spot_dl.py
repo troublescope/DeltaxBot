@@ -166,10 +166,18 @@ async def download_and_check_song(client: Client, song: Song) -> Tuple[str, str]
             logger.error(f"Error retrieving cached song for {song.url}: {e}")
     song_obj, path = await download_and_prepare_song(song)
     caption = build_song_caption(song)
+    thumb = await spotify.download_thumbnail(song)
     try:
         log_msg = await client.send_audio(
-            chat_id=config.channel_log, audio=path, caption=caption
+            chat_id=config.channel_log,
+            audio=path,
+            caption=caption,
+            title=song.name,
+            performer=song.artist,
+            duration=int(song.duration),
+            thumb=thumb,
         )
+
         await add_music(message_id=log_msg.id, url=song.url)
     except Exception as e:
         logger.error(f"Error sending {song.display_name} to log channel: {e}")
@@ -177,6 +185,7 @@ async def download_and_check_song(client: Client, song: Song) -> Tuple[str, str]
     finally:
         if os.path.exists(path):
             os.remove(path)
+            os.remove(thumb)
     return log_msg.audio.file_id, caption
 
 
