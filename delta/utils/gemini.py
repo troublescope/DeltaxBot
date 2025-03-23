@@ -218,7 +218,7 @@ class ChatManager:
     async def get_chat(
         self,
         user_id: int,
-        model: str = "gemini-1.5-flash",
+        model: str = "gemini-2.0-flash",
         instruction: str = SYSTEM_INSTRUCTION,
         api_key: Optional[str] = None,
         vertexai: bool = False,

@@ -6,6 +6,9 @@ from delta.utils import gemini_chat
 
 @Client.on_message(filters.mentioned | filters.command(["ai", "delta"]), group=10)
 async def chatai(client: Client, message: types.Message) -> None:
+    if message.mentioned and message.command:
+        return
+
     target_user = (
         message.reply_to_message.reply_to_message.from_user
         if message.reply_to_message
