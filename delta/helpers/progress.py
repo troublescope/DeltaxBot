@@ -8,7 +8,7 @@ from pyrogram.types import CallbackQuery, Message
 from delta.utils import format_duration, human_readable_bytes
 
 
-def progress_func(
+async def progress_func(
     current: int,
     total: int,
     msg: Union[Message, CallbackQuery],
