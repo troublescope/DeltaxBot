@@ -1,6 +1,7 @@
 import html
 import logging
 import os
+import time
 import uuid
 from typing import List, Tuple
 
@@ -132,6 +133,7 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
         try:
             caption = build_song_caption(song)
             thumb = await spotify.download_thumbnail(song)
+            start_time = time.time()
             log_msg = await client.send_audio(
                 chat_id=config.channel_log,
                 audio=path,
@@ -140,6 +142,8 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
                 performer=song.artist,
                 duration=int(song.duration),
                 thumb=thumb,
+                progress=progress_func,
+                progress_args=(downloading_message, start_time, "upload", song.name),
             )
             await add_music(message_id=log_msg.id, url=song.url)
         except Exception as e:
@@ -161,7 +165,7 @@ async def spotdl_cmd(client: Client, message: Message) -> None:
     await downloading_message.delete()
 
 
-async def download_and_check_song(client: Client, song: Song) -> Tuple[str, str]:
+async def download_and_check_song(client: Client, msg, song: Song) -> Tuple[str, str]:
     record = await get_music_by_url(song.url)
     if record and record.message_id:
         try:
@@ -183,6 +187,8 @@ async def download_and_check_song(client: Client, song: Song) -> Tuple[str, str]
             performer=song.artist,
             duration=int(song.duration),
             thumb=thumb,
+            progress=progress_func,
+            progress_args=(msg, start_time, "upload", song.name),
         )
 
         await add_music(message_id=log_msg.id, url=song.url)
@@ -205,7 +211,9 @@ async def callback_download_handler(client: Client, callback_query: CallbackQuer
         songs = await spotify.search([song_url])
         for song in songs:
             try:
-                audio_file_id, caption = await download_and_check_song(client, song)
+                audio_file_id, caption = await download_and_check_song(
+                    client, callback_query.message, song
+                )
             except Exception:
                 await callback_query.answer("Error downloading song.", show_alert=True)
                 return
