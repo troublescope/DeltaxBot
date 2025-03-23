@@ -5,7 +5,7 @@ from typing import Literal, Union
 from pyrogram.errors import FloodWait
 from pyrogram.types import CallbackQuery, Message
 
-from delta.utils.formater import format_duration, human_readable_bytes
+from delta.utils import format_duration, human_readable_bytes
 
 
 async def progress_func(
