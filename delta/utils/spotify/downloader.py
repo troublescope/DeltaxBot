@@ -37,8 +37,9 @@ class Downloader(BaseDownloader):
         bundle_settings["format"] = "m4a"
         cookie_path = AsyncPath("data/cookies.txt")
         bundle_settings["cookie_file"] = str(cookie_path)
+        bundle_settings["bitrate"] = 0
         bundle_settings["yt_dlp_args"] = (
-            f"--format bestaudio[ext=m4a]/best[ext=mp4]/best --extractor-args youtube:cookie={str(cookie_path)}"
+            f"--format bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best --extractor-args youtube:cookie={str(cookie_path)}"
         )
 
         super().__init__(bundle_settings)
