@@ -1,5 +1,6 @@
 from aiopath import AsyncPath
 from pyrogram import Client, filters, types
+from pyrogram.enums import ChatAction  # Import enum for chat actions
 
 from delta.utils import gemini_chat
 
@@ -20,7 +21,6 @@ async def clear_chat_session(client: Client, message: types.Message):
 
 @Client.on_message(filters.mentioned | filters.command(["ai", "delta"]))
 async def chatai(client: Client, message: types.Message) -> None:
-
     target_user = (
         message.reply_to_message.reply_to_message.from_user
         if message.reply_to_message
@@ -39,6 +39,10 @@ async def chatai(client: Client, message: types.Message) -> None:
 
     ai = await gemini_chat.get_chat(target_user.id)
     msg = message.reply_to_message or message
+
+    # Send chat action using enum
+    await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
+
     if getattr(msg, "photo", None):
         photo_path = None
         try:
