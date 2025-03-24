@@ -46,12 +46,10 @@ def error_handler(func: Callable[..., T]) -> Callable[..., T]:
 
 class GeminiAI:
     """
-    Client for interacting with Google's Gemini models that supports multiple API keys.
+    Client for interacting with Google's Gemini models that supports per-user API keys.
 
     A class-level dictionary (`sessions`) maps a user ID to its GeminiAI instance.
-    When you call get_session with a user ID, it returns the instance that was created
-    with that user's API key. If a session for that user already exists, it retains the
-    originally provided API key until the session is explicitly removed or recreated.
+    If no API key is provided at instantiation, the class uses the default from config.gemini_api_key.
     """
 
     # Mapping from user_id to GeminiAI instance.
@@ -67,9 +65,14 @@ class GeminiAI:
         location: Optional[str] = None,
         http_options: Optional[Dict[str, Any]] = None,
     ):
-        # Validate authentication parameters.
+        # For non-Vertex AI, if no API key is provided, use the default from config.
+        if not vertexai and api_key is None:
+            api_key = config.gemini_api_key
+
         if vertexai and (not project or not location):
             raise ValueError("Project and location are required when using Vertex AI")
+        if not vertexai and api_key is None:
+            raise ValueError("API key is required when not using Vertex AI")
 
         if vertexai:
             self.client = genai.Client(
@@ -84,7 +87,7 @@ class GeminiAI:
         self.model = model
         self.instruction = instruction
         self.chat = None
-        self.api_key = api_key
+        self.api_key = api_key  # Store the API key used for this session.
 
     @error_handler
     async def _create_chat(self) -> None:
@@ -106,8 +109,7 @@ class GeminiAI:
     async def send(self, message: str, tools: Optional[List[Tool]] = None) -> str:
         """
         Send a message to the Gemini model and return the text response.
-
-        By default, if no tools are provided, this method will use the Google Search tool.
+        By default, if no tools are provided, this method uses the Google Search tool.
         """
         if tools is None:
             tools = [Tool(google_search=GoogleSearch())]
@@ -180,9 +182,9 @@ class GeminiAI:
         """
         Retrieve an existing session for the given user_id or create a new one.
 
-        If a session for the user already exists, it will return the session that was created
-        with the original API key. To recreate a session (with a new API key), you must remove
-        the current session first using remove_session.
+        If a session for the user already exists, it returns the session that was created
+        with its original API key. To recreate a session (with a new API key), first remove
+        the existing session using remove_session.
         """
         if user_id in cls.sessions:
             return cls.sessions[user_id]
@@ -190,7 +192,7 @@ class GeminiAI:
             new_instance = GeminiAI(
                 model=model,
                 instruction=instruction,
-                api_key=api_key if api_key is not None else config.gemini_api_key,
+                api_key=api_key,  # If None, __init__ will use config.gemini_api_key.
                 vertexai=vertexai,
                 project=project,
                 location=location,
