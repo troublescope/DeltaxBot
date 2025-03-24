@@ -9,6 +9,15 @@ def split_text(text: str, limit: int = 4000) -> list[str]:
     return [text[i : i + limit] for i in range(0, len(text), limit)]
 
 
+@Client.on_message(filters.command("clear"))
+async def clear_chat_session(client: Client, message: types.Message):
+    user: types.User = message.from_user
+    if not user:
+        return
+    await gemini_chat.remove_session(user.id)
+    return await message.reply("Done!")
+
+
 @Client.on_message(filters.mentioned | filters.command(["ai", "delta"]), group=10)
 async def chatai(client: Client, message: types.Message) -> None:
 
