@@ -9,7 +9,7 @@ from PIL import Image
 
 from delta import config
 
-# Define types for better type hinting
+# Define types for better type hinting.
 T = TypeVar("T")
 ImageType = Union[str, Image.Image]
 
@@ -46,18 +46,15 @@ def error_handler(func: Callable[..., T]) -> Callable[..., T]:
 
 class GeminiAI:
     """
-    Client for interacting with Google's Gemini models that supports per-user API keys.
+    Client for interacting with Google's Gemini models.
 
-    A class-level dictionary (`sessions`) maps a user ID to its GeminiAI instance.
-    If no API key is provided at instantiation, the class uses the default from config.gemini_api_key.
+    This class encapsulates core functionalities (chat, vision, etc.). An API key is used at creation—
+    either passed in or taken from config.gemini_api_key (which returns a random key from your list).
     """
-
-    # Mapping from user_id to GeminiAI instance.
-    sessions: Dict[int, "GeminiAI"] = {}
 
     def __init__(
         self,
-        model: str = "gemini-2.0-flash",
+        model: str,
         instruction: Optional[str] = SYSTEM_INSTRUCTION,
         api_key: Optional[str] = None,
         vertexai: bool = False,
@@ -65,7 +62,7 @@ class GeminiAI:
         location: Optional[str] = None,
         http_options: Optional[Dict[str, Any]] = None,
     ):
-        # For non-Vertex AI, if no API key is provided, use the default from config.
+        # For non-Vertex AI, if no API key is provided, use the default (which randomizes from a list).
         if not vertexai and api_key is None:
             api_key = config.gemini_api_key
 
@@ -109,6 +106,7 @@ class GeminiAI:
     async def send(self, message: str, tools: Optional[List[Tool]] = None) -> str:
         """
         Send a message to the Gemini model and return the text response.
+
         By default, if no tools are provided, this method uses the Google Search tool.
         """
         if tools is None:
@@ -166,10 +164,22 @@ class GeminiAI:
         except Exception as e:
             raise ValueError(f"Failed to open image: {str(e)}")
 
-    @classmethod
+
+class ChatManager:
+    """
+    Manager for handling per-user GeminiAI sessions.
+
+    This class maintains a dictionary mapping a user ID to a GeminiAI instance. When you
+    call get_session, if a session for that user already exists (and was created with a certain API key),
+    it will be returned. To use a different API key, remove the session first.
+    """
+
+    def __init__(self):
+        self.user_sessions: Dict[int, GeminiAI] = {}
+
     @error_handler
     async def get_session(
-        cls,
+        self,
         user_id: int,
         model: str = "gemini-2.0-flash",
         instruction: str = SYSTEM_INSTRUCTION,
@@ -178,38 +188,36 @@ class GeminiAI:
         project: Optional[str] = None,
         location: Optional[str] = None,
         http_options: Optional[Dict[str, Any]] = None,
-    ) -> "GeminiAI":
+    ) -> GeminiAI:
         """
-        Retrieve an existing session for the given user_id or create a new one.
+        Retrieve an existing session for a user or create a new one if not found.
 
-        If a session for the user already exists, it returns the session that was created
-        with its original API key. To recreate a session (with a new API key), first remove
-        the existing session using remove_session.
+        If a session already exists for the given user_id, it is returned with its original API key.
         """
-        if user_id in cls.sessions:
-            return cls.sessions[user_id]
+        if user_id in self.user_sessions:
+            return self.user_sessions[user_id]
         else:
-            new_instance = GeminiAI(
+            # Create a new session. If no api_key is provided, default to config.gemini_api_key.
+            session = GeminiAI(
                 model=model,
                 instruction=instruction,
-                api_key=api_key,  # If None, __init__ will use config.gemini_api_key.
+                api_key=api_key if api_key is not None else config.gemini_api_key,
                 vertexai=vertexai,
                 project=project,
                 location=location,
                 http_options=http_options,
             )
-            cls.sessions[user_id] = new_instance
-            return new_instance
+            self.user_sessions[user_id] = session
+            return session
 
-    @classmethod
-    async def remove_session(cls, user_id: int) -> bool:
+    async def remove_session(self, user_id: int) -> bool:
         """
         Remove a user's session if it exists.
         """
-        if user_id in cls.sessions:
-            del cls.sessions[user_id]
+        if user_id in self.user_sessions:
+            del self.user_sessions[user_id]
             return True
         return False
 
 
-gemini_chat = GeminiAI()
+gemini_chat = ChatManager()
