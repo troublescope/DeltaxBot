@@ -17,11 +17,15 @@ SYSTEM_INSTRUCTION = """You are a friendly and helpful assistant.
 Provide complete answers unless the user requests a concise response. Keep simple answers short.
 When generating code, follow best practices and include explanations when necessary.
 Ensure all responses are factually correct and well-structured.
-Respond all non English queries must be same language as the user’s query unless instructed otherwise.
+Respond to all non-English queries in the same language as the user's query unless instructed otherwise.
 For reasoning tasks, explain the thought process before giving the final answer.
 Maintain a professional yet approachable tone."""
 
-IMAGE_PROMPT = "Analyze the given image and provide a brief summary of its key elements. Identify the main objects, colors, and any visible text. If people are present, mention their actions or expressions. Keep the response short and clear. Respond all non English queries must be same language as the user’s query unless instructed otherwise."
+IMAGE_PROMPT = """Analyze the given image and provide a brief summary of its key elements.
+Identify the main objects, colors, and any visible text.
+If people are present, mention their actions or expressions.
+Keep the response short and clear.
+Respond to all non-English queries in the same language as the user's query unless instructed otherwise."""
 
 
 def error_handler(func: Callable[..., T]) -> Callable[..., T]:
@@ -112,7 +116,11 @@ class GeminiAIChat:
         Create a new chat session asynchronously with the specified configuration.
         """
         cfg = (
-            types.GenerateContentConfig(system_instruction=self.instruction)
+            types.GenerateContentConfig(
+                system_instruction=self.instruction,
+                max_output_tokens=500,
+                temperature=0.1,
+            )
             if self.instruction
             else None
         )
