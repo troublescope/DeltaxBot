@@ -4,6 +4,11 @@ from pyrogram import Client, filters, types
 from delta.utils import gemini_chat
 
 
+def split_text(text: str, limit: int = 4000) -> list[str]:
+    """Splits the given text into chunks not exceeding 'limit' characters."""
+    return [text[i : i + limit] for i in range(0, len(text), limit)]
+
+
 @Client.on_message(filters.mentioned | filters.command(["ai", "delta"]), group=10)
 async def chatai(client: Client, message: types.Message) -> None:
 
@@ -25,13 +30,20 @@ async def chatai(client: Client, message: types.Message) -> None:
 
     ai = await gemini_chat.get_chat(target_user.id)
     msg = message.reply_to_message or message
-    if getattr(msg, "photo"):
+    if getattr(msg, "photo", None):
         photo_path = None
         try:
             photo_path = await msg.download()
             async_photo = AsyncPath(photo_path)
             resp = await ai.vision(photo_path, str(text))
-            await msg.reply_text(resp)
+            # Check if response exceeds 4000 characters
+            if len(resp) > 4000:
+                parts = split_text(resp, 4000)
+                first_reply = await msg.reply_text(parts[0])
+                for part in parts[1:]:
+                    await first_reply.reply_text(part)
+            else:
+                await msg.reply_text(resp)
         except Exception as e:
             await msg.reply_text(str(e))
         finally:
@@ -43,6 +55,13 @@ async def chatai(client: Client, message: types.Message) -> None:
     else:
         try:
             resp = await ai.send(str(text))
-            await message.reply_text(resp)
+            # Check if response exceeds 4000 characters
+            if len(resp) > 4000:
+                parts = split_text(resp, 4000)
+                first_reply = await message.reply_text(parts[0])
+                for part in parts[1:]:
+                    await first_reply.reply_text(part)
+            else:
+                await message.reply_text(resp)
         except Exception as e:
             await message.reply_text(str(e))
