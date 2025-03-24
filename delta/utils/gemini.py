@@ -3,34 +3,29 @@ from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 from google import genai
-from google.genai.types import (
-    GenerateContentConfig,
-    GoogleSearch,
-    ModelContent,
-    Part,
-    Tool,
-    UserContent,
-)
+from google.genai import types
+from google.genai.types import GenerateContentConfig, GoogleSearch, Tool
 from PIL import Image
 
 from delta import config
 
+# Define types for better type hinting
 T = TypeVar("T")
 ImageType = Union[str, Image.Image]
 
-SYSTEM_INSTRUCTION = (
-    "You are a friendly and helpful assistant. Provide complete answers unless the user requests a concise response. "
-    "Keep simple answers short. When generating code, follow best practices and include explanations when necessary. "
-    "Ensure all responses are factually correct and well-structured. Respond to all non-English queries in the same language as "
-    "the user's query unless instructed otherwise. For reasoning tasks, explain the thought process before giving the final answer. "
-    "Maintain a professional yet approachable tone."
-)
+SYSTEM_INSTRUCTION = """You are a friendly and helpful assistant.
+Provide complete answers unless the user requests a concise response. Keep simple answers short.
+When generating code, follow best practices and include explanations when necessary.
+Ensure all responses are factually correct and well-structured.
+Respond to all non-English queries in the same language as the user's query unless instructed otherwise.
+For reasoning tasks, explain the thought process before giving the final answer.
+Maintain a professional yet approachable tone."""
 
-IMAGE_PROMPT = (
-    "Analyze the given image and provide a brief summary of its key elements. Identify the main objects, colors, and any visible text. "
-    "If people are present, mention their actions or expressions. Keep the response short and clear. "
-    "Respond to all non-English queries in the same language as the user's query unless instructed otherwise."
-)
+IMAGE_PROMPT = """Analyze the given image and provide a brief summary of its key elements.
+Identify the main objects, colors, and any visible text.
+If people are present, mention their actions or expressions.
+Keep the response short and clear.
+Respond to all non-English queries in the same language as the user's query unless instructed otherwise."""
 
 
 def error_handler(func: Callable[..., T]) -> Callable[..., T]:
@@ -45,24 +40,21 @@ def error_handler(func: Callable[..., T]) -> Callable[..., T]:
     return cast(Callable[..., T], wrapper)
 
 
-class GeminiAI:
+class GeminiAIChat:
     def __init__(
         self,
         model: str,
-        instruction: Optional[str] = SYSTEM_INSTRUCTION,
+        instruction: Optional[str] = None,
         api_key: Optional[str] = None,
         vertexai: bool = False,
         project: Optional[str] = None,
         location: Optional[str] = None,
         http_options: Optional[Dict[str, Any]] = None,
     ):
-        if not vertexai and api_key is None:
-            api_key = config.gemini_api_key
         if vertexai and (not project or not location):
             raise ValueError("Project and location are required when using Vertex AI")
-        if not vertexai and api_key is None:
+        if not vertexai and not api_key:
             raise ValueError("API key is required when not using Vertex AI")
-
         if vertexai:
             self.client = genai.Client(
                 vertexai=True,
@@ -72,52 +64,43 @@ class GeminiAI:
             )
         else:
             self.client = genai.Client(api_key=api_key, http_options=http_options)
-
         self.model = model
         self.instruction = instruction
-        self.api_key = api_key
-        # Start with an empty conversation history.
-        self.history: List[Union[UserContent, ModelContent]] = []
         self.chat = None
 
     @error_handler
     async def _create_chat(self) -> None:
-        # Create a new chat session using the current history.
-        self.chat = self.client.aio.chats.create(model=self.model, history=self.history)
+        cfg = (
+            types.GenerateContentConfig(system_instruction=self.instruction)
+            if self.instruction
+            else None
+        )
+        self.chat = self.client.aio.chats.create(model=self.model, config=cfg)
 
     @error_handler
-    async def send_message(
-        self, message: str, tools: Optional[List[Tool]] = None
+    async def send(
+        self,
+        message: str,
+        tools: Optional[List[Tool]] = None,
+        temperature: float = 0.1,
+        max_output_tokens: int = 1024,
     ) -> str:
-        # If no active chat session, create one.
-        if self.chat is None:
+        if not self.chat:
             await self._create_chat()
-        # Append the user's message to the history.
-        user_content = UserContent(parts=[Part(text=message)])
-        self.history.append(user_content)
-        # Set default tools if none provided.
         if tools is None:
             tools = [Tool(google_search=GoogleSearch())]
         cfg = GenerateContentConfig(
             system_instruction=self.instruction,
-            max_output_tokens=500,
-            temperature=0.1,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
             tools=tools,
         )
-        # Send the message using the chat session's send_message method.
-        # (Assumes that the underlying API supports a config parameter.)
         response = await self.chat.send_message(message, config=cfg)
-        model_content = ModelContent(parts=[Part(text=response.text)])
-        self.history.append(model_content)
-        # Optionally, re-create the chat session with the updated history
-        # so that the next message includes the full conversation context.
-        await self._create_chat()
         return response.text
 
     @error_handler
     async def set_instruction(self, instruction: str) -> None:
         self.instruction = instruction
-        self.history = []
         await self._create_chat()
 
     @error_handler
@@ -126,6 +109,8 @@ class GeminiAI:
         image: ImageType,
         prompt: str = IMAGE_PROMPT,
         tools: Optional[List[Tool]] = None,
+        temperature: float = 0.1,
+        max_output_tokens: int = 500,
     ) -> str:
         loop = asyncio.get_running_loop()
         image_obj = image
@@ -135,18 +120,13 @@ class GeminiAI:
             tools = [Tool(google_search=GoogleSearch())]
         cfg = GenerateContentConfig(
             system_instruction=self.instruction,
-            max_output_tokens=500,
-            temperature=0.1,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
             tools=tools,
         )
-        # For vision, we use the generate_content endpoint directly.
         response = await self.client.aio.models.generate_content(
             model=self.model, contents=[prompt, image_obj], config=cfg
         )
-        # Optionally update history with the vision prompt and result.
-        user_content = UserContent(parts=[Part(text=prompt)])
-        model_content = ModelContent(parts=[Part(text=response.text)])
-        self.history.extend([user_content, model_content])
         return response.text
 
     def _open_image(self, image_path: str) -> Image.Image:
@@ -161,38 +141,41 @@ class GeminiAI:
 
 class ChatManager:
     def __init__(self):
-        self.user_sessions: Dict[int, GeminiAI] = {}
+        self.user_chats: Dict[int, GeminiAIChat] = {}
 
     @error_handler
-    async def get_session(
+    async def get_chat(
         self,
         user_id: int,
-        model: str = "gemini-2.0-flash-001",
+        model: str = "gemini-2.0-flash",
         instruction: str = SYSTEM_INSTRUCTION,
         api_key: Optional[str] = None,
         vertexai: bool = False,
         project: Optional[str] = None,
         location: Optional[str] = None,
         http_options: Optional[Dict[str, Any]] = None,
-    ) -> GeminiAI:
-        if user_id in self.user_sessions:
-            return self.user_sessions[user_id]
-        else:
-            session = GeminiAI(
+    ) -> GeminiAIChat:
+        if user_id not in self.user_chats:
+            if api_key is None:
+                api_key = config.gemini_api_key
+            if not api_key and not (vertexai and project and location):
+                raise ValueError(
+                    "Either API key or Vertex AI credentials must be provided"
+                )
+            self.user_chats[user_id] = GeminiAIChat(
                 model=model,
                 instruction=instruction,
-                api_key=api_key if api_key is not None else config.gemini_api_key,
+                api_key=api_key,
                 vertexai=vertexai,
                 project=project,
                 location=location,
                 http_options=http_options,
             )
-            self.user_sessions[user_id] = session
-            return session
+        return self.user_chats[user_id]
 
-    async def remove_session(self, user_id: int) -> bool:
-        if user_id in self.user_sessions:
-            del self.user_sessions[user_id]
+    async def remove_chat(self, user_id: int) -> bool:
+        if user_id in self.user_chats:
+            del self.user_chats[user_id]
             return True
         return False
 

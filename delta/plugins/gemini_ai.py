@@ -14,7 +14,7 @@ async def clear_chat_session(client: Client, message: types.Message):
     user: types.User = message.from_user
     if not user:
         return
-    await gemini_chat.remove_session(user.id)
+    await gemini_chat.remove_chat(user.id)
     return await message.reply("Done!")
 
 
@@ -37,7 +37,7 @@ async def chatai(client: Client, message: types.Message) -> None:
         else (message.text or message.caption or "")
     )
 
-    ai = await gemini_chat.get_session(target_user.id)
+    ai = await gemini_chat.get_chat(target_user.id)
     msg = message.reply_to_message or message
     if getattr(msg, "photo", None):
         photo_path = None
