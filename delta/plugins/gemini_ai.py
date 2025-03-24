@@ -18,7 +18,7 @@ async def clear_chat_session(client: Client, message: types.Message):
     return await message.reply("Done!")
 
 
-@Client.on_message(filters.mentioned | filters.command(["ai", "delta"]), group=10)
+@Client.on_message(filters.mentioned | filters.command(["ai", "delta"]))
 async def chatai(client: Client, message: types.Message) -> None:
 
     target_user = (

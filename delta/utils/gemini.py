@@ -82,7 +82,7 @@ class GeminiAIChat:
         self,
         message: str,
         tools: Optional[List[Tool]] = None,
-        temperature: float = 0.1,
+        temperature: float = 0.9,
         max_output_tokens: int = 1024,
     ) -> str:
         if not self.chat:
