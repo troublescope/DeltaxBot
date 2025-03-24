@@ -7,6 +7,8 @@ from google.genai import types
 from google.genai.types import GenerateContentConfig, GoogleSearch, Tool
 from PIL import Image
 
+from delta import config
+
 # Define types for better type hinting
 T = TypeVar("T")
 ImageType = Union[str, Image.Image]
@@ -44,18 +46,16 @@ def error_handler(func: Callable[..., T]) -> Callable[..., T]:
 
 class GeminiAI:
     """
-    Singleton client for interacting with Google's Gemini models.
-    The class is implemented as a singleton, so only one instance exists.
+    Client for interacting with Google's Gemini models that supports multiple API keys.
 
-    Methods like get_session return the same instance.
+    A class-level dictionary (`sessions`) maps a user ID to its GeminiAI instance.
+    When you call get_session with a user ID, it returns the instance that was created
+    with that user's API key. If a session for that user already exists, it retains the
+    originally provided API key until the session is explicitly removed or recreated.
     """
 
-    _instance: Optional["GeminiAI"] = None
-
-    def __new__(cls, *args: Any, **kwargs: Any) -> "GeminiAI":
-        if cls._instance is None:
-            cls._instance = super(GeminiAI, cls).__new__(cls)
-        return cls._instance
+    # Mapping from user_id to GeminiAI instance.
+    sessions: Dict[int, "GeminiAI"] = {}
 
     def __init__(
         self,
@@ -67,15 +67,11 @@ class GeminiAI:
         location: Optional[str] = None,
         http_options: Optional[Dict[str, Any]] = None,
     ):
-        # Avoid reinitializing if already initialized.
-        if hasattr(self, "_initialized") and self._initialized:
-            return
-
+        # Validate authentication parameters.
         if vertexai and (not project or not location):
             raise ValueError("Project and location are required when using Vertex AI")
         if not vertexai and not api_key:
             raise ValueError("API key is required when not using Vertex AI")
-
         if vertexai:
             self.client = genai.Client(
                 vertexai=True,
@@ -89,7 +85,7 @@ class GeminiAI:
         self.model = model
         self.instruction = instruction
         self.chat = None
-        self._initialized = True
+        self.api_key = api_key  # Store the API key for reference.
 
     @error_handler
     async def _create_chat(self) -> None:
@@ -111,7 +107,8 @@ class GeminiAI:
     async def send(self, message: str, tools: Optional[List[Tool]] = None) -> str:
         """
         Send a message to the Gemini model and return the text response.
-        By default, if no tools are provided, the send method will use the Google Search tool.
+
+        By default, if no tools are provided, this method will use the Google Search tool.
         """
         if tools is None:
             tools = [Tool(google_search=GoogleSearch())]
@@ -168,10 +165,13 @@ class GeminiAI:
         except Exception as e:
             raise ValueError(f"Failed to open image: {str(e)}")
 
+    @classmethod
     @error_handler
     async def get_session(
-        self,
+        cls,
         user_id: int,
+        model: str = "gemini-2.0-flash",
+        instruction: str = SYSTEM_INSTRUCTION,
         api_key: Optional[str] = None,
         vertexai: bool = False,
         project: Optional[str] = None,
@@ -179,12 +179,36 @@ class GeminiAI:
         http_options: Optional[Dict[str, Any]] = None,
     ) -> "GeminiAI":
         """
-        Return the singleton instance.
-        In a singleton design, get_session simply returns self.
+        Retrieve an existing session for the given user_id or create a new one.
+
+        If a session for the user already exists, it will return the session that was created
+        with the original API key. To recreate a session (with a new API key), you must remove
+        the current session first using remove_session.
         """
-        # If needed, you could update settings here if not already set.
-        return self
+        if user_id in cls.sessions:
+            return cls.sessions[user_id]
+        else:
+            new_instance = GeminiAI(
+                model=model,
+                instruction=instruction,
+                api_key=api_key if api_key is not None else config.gemini_api_key,
+                vertexai=vertexai,
+                project=project,
+                location=location,
+                http_options=http_options,
+            )
+            cls.sessions[user_id] = new_instance
+            return new_instance
+
+    @classmethod
+    async def remove_session(cls, user_id: int) -> bool:
+        """
+        Remove a user's session if it exists.
+        """
+        if user_id in cls.sessions:
+            del cls.sessions[user_id]
+            return True
+        return False
 
 
-# Create or retrieve the singleton instance:
 gemini_chat = GeminiAI()

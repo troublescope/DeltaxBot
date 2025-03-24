@@ -1,4 +1,5 @@
 import os
+import random
 from typing import Any, Callable, List, Optional, TypeVar, Union
 
 # Generic Type
@@ -34,9 +35,7 @@ class Settings:
         self.spotify_secret: Optional[str] = self._get_env_var(
             "SPOTIFY_SECRET", str, optional=True, default=""
         )
-        self.gemini_api_key: Optional[str] = self._get_env_var(
-            "GEMINI_API_KEY", str, default=""
-        )
+        # Note: gemini_api_key is now a property so we don't assign it here directly.
 
     def _get_env_var(
         self,
@@ -63,10 +62,8 @@ class Settings:
         value = os.getenv(var_name, default)
         if value is None and not optional:
             raise ValueError(f"Environment variable '{var_name}' not found.")
-
         if value is None:
             return None
-
         try:
             return var_type(value)
         except (TypeError, ValueError) as e:
@@ -89,12 +86,10 @@ class Settings:
         """
         if isinstance(value, int):
             return [value]
-
         if isinstance(value, str):
             value = value.strip()
             if value.isdigit():
                 return [int(value)]
-
             # Convert comma-separated string to list of integers
             id_list = []
             for item in value.split(","):
@@ -104,21 +99,30 @@ class Settings:
                 else:
                     raise ValueError(f"Invalid integer value in list: '{item}'")
             return id_list
-
         if isinstance(value, list):
             if all(isinstance(item, int) for item in value):
                 return value
             raise ValueError("All items in the list must be integers.")
-
         raise ValueError(
             "owner_id and devs_id must be an int, comma-separated string, or list of integers."
         )
+
+    @property
+    def gemini_api_key(self) -> str:
+        """
+        Return a random API key from the comma-separated list in the GEMINI_API_KEY environment variable.
+        """
+        keys = os.getenv("GEMINI_API_KEY", "")
+        # Split by comma, remove any extra whitespace and filter out empty strings.
+        keys_list = [key.strip() for key in keys.split(",") if key.strip()]
+        if not keys_list:
+            return ""
+        return random.choice(keys_list)
 
 
 # Load environment file if it exists
 from dotenv import load_dotenv
 
-# Fix the typo in the environment file path check
 env_file = "config.env" if os.path.exists("config.env") else ".env"
 load_dotenv(env_file)
 
