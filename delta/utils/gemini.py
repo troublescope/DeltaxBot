@@ -70,8 +70,7 @@ class GeminiAI:
         # Validate authentication parameters.
         if vertexai and (not project or not location):
             raise ValueError("Project and location are required when using Vertex AI")
-        if not vertexai and not api_key:
-            raise ValueError("API key is required when not using Vertex AI")
+
         if vertexai:
             self.client = genai.Client(
                 vertexai=True,
@@ -85,7 +84,7 @@ class GeminiAI:
         self.model = model
         self.instruction = instruction
         self.chat = None
-        self.api_key = api_key  # Store the API key for reference.
+        self.api_key = api_key
 
     @error_handler
     async def _create_chat(self) -> None:
