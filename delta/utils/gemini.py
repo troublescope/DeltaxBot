@@ -3,8 +3,12 @@ from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 from google import genai
-from google.genai import types
-from google.genai.types import GenerateContentConfig, GoogleSearch, Tool
+from google.genai.types import (
+    ModelContent,
+    Part,
+    Tool,
+    UserContent,
+)
 from PIL import Image
 
 from delta import config
@@ -46,10 +50,8 @@ def error_handler(func: Callable[..., T]) -> Callable[..., T]:
 
 class GeminiAI:
     """
-    Client for interacting with Google's Gemini models.
-
-    This class encapsulates core functionalities (chat, vision, etc.). An API key is used at creation—
-    either passed in or taken from config.gemini_api_key (which returns a random key from your list).
+    Client for interacting with Google's Gemini models using multi-part chat sessions.
+    Each instance maintains a conversation history composed of multi-part messages.
     """
 
     def __init__(
@@ -62,7 +64,7 @@ class GeminiAI:
         location: Optional[str] = None,
         http_options: Optional[Dict[str, Any]] = None,
     ):
-        # For non-Vertex AI, if no API key is provided, use the default (which randomizes from a list).
+        # Use default API key if needed.
         if not vertexai and api_key is None:
             api_key = config.gemini_api_key
 
@@ -83,53 +85,57 @@ class GeminiAI:
 
         self.model = model
         self.instruction = instruction
-        self.chat = None
         self.api_key = api_key  # Store the API key used for this session.
+        # Initialize the multi-part conversation history.
+        self.history: List[Union[UserContent, ModelContent]] = [
+            UserContent(parts=[Part(text="Hello")]),
+            ModelContent(
+                parts=[Part(text="Great to meet you. What would you like to know?")]
+            ),
+        ]
+        self.chat = None  # This will hold the stateful chat session.
 
     @error_handler
     async def _create_chat(self) -> None:
         """
-        Create a new chat session asynchronously using the current instruction.
+        Create a new chat session with the current multi-part history.
         """
-        cfg = (
-            types.GenerateContentConfig(
-                system_instruction=self.instruction,
-                max_output_tokens=500,
-                temperature=0.1,
-            )
-            if self.instruction
-            else None
-        )
-        self.chat = self.client.aio.chats.create(model=self.model, config=cfg)
+        # Create the chat session using the existing history.
+        self.chat = self.client.aio.chats.create(model=self.model, history=self.history)
 
     @error_handler
-    async def send(self, message: str, tools: Optional[List[Tool]] = None) -> str:
+    async def send_message(
+        self, message: str, tools: Optional[List[Tool]] = None
+    ) -> str:
         """
-        Send a message to the Gemini model and return the text response.
-
-        By default, if no tools are provided, this method uses the Google Search tool.
+        Send a message using multi-part messaging. The user's message is appended to the history,
+        the chat session sends the message, and the model's response is appended to the history.
         """
-        if tools is None:
-            tools = [Tool(google_search=GoogleSearch())]
-        cfg = GenerateContentConfig(
-            system_instruction=self.instruction,
-            max_output_tokens=500,
-            temperature=0.1,
-            tools=tools,
-        )
-        response = await self.client.aio.models.generate_content(
-            model=self.model,
-            contents=message,
-            config=cfg,
-        )
+        if self.chat is None:
+            await self._create_chat()
+        # Append the user's message as a multi-part content.
+        user_content = UserContent(parts=[Part(text=message)])
+        self.history.append(user_content)
+        # Send the message using the current chat session.
+        response = await self.chat.send_message(message)
+        # Append the model's response to the history.
+        model_content = ModelContent(parts=[Part(text=response.text)])
+        self.history.append(model_content)
         return response.text
 
     @error_handler
     async def set_instruction(self, instruction: str) -> None:
         """
-        Update the system instruction and recreate the chat session.
+        Update the system instruction and recreate the chat session with a reset history.
         """
         self.instruction = instruction
+        # Reset history if instruction changes.
+        self.history = [
+            UserContent(parts=[Part(text="Hello")]),
+            ModelContent(
+                parts=[Part(text="Great to meet you. What would you like to know?")]
+            ),
+        ]
         await self._create_chat()
 
     @error_handler
@@ -167,11 +173,8 @@ class GeminiAI:
 
 class ChatManager:
     """
-    Manager for handling per-user GeminiAI sessions.
-
-    This class maintains a dictionary mapping a user ID to a GeminiAI instance. When you
-    call get_session, if a session for that user already exists (and was created with a certain API key),
-    it will be returned. To use a different API key, remove the session first.
+    Manager for handling per-user GeminiAI sessions that use multi-part conversation histories.
+    Each user ID is mapped to its own GeminiAI instance.
     """
 
     def __init__(self):
@@ -181,7 +184,7 @@ class ChatManager:
     async def get_session(
         self,
         user_id: int,
-        model: str = "gemini-2.0-flash",
+        model: str = "gemini-2.0-flash-001",
         instruction: str = SYSTEM_INSTRUCTION,
         api_key: Optional[str] = None,
         vertexai: bool = False,
@@ -190,14 +193,11 @@ class ChatManager:
         http_options: Optional[Dict[str, Any]] = None,
     ) -> GeminiAI:
         """
-        Retrieve an existing session for a user or create a new one if not found.
-
-        If a session already exists for the given user_id, it is returned with its original API key.
+        Retrieve an existing session for a user or create a new multi-part session if not found.
         """
         if user_id in self.user_sessions:
             return self.user_sessions[user_id]
         else:
-            # Create a new session. If no api_key is provided, default to config.gemini_api_key.
             session = GeminiAI(
                 model=model,
                 instruction=instruction,
@@ -220,4 +220,5 @@ class ChatManager:
         return False
 
 
+# Instantiate ChatManager for managing per-user multi-part sessions.
 gemini_chat = ChatManager()
