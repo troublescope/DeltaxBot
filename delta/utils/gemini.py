@@ -76,21 +76,26 @@ class GeminiAI:
         self.model = model
         self.instruction = instruction
         self.api_key = api_key
+        # Start with an empty conversation history.
         self.history: List[Union[UserContent, ModelContent]] = []
         self.chat = None
 
     @error_handler
     async def _create_chat(self) -> None:
+        # Create a new chat session using the current history.
         self.chat = self.client.aio.chats.create(model=self.model, history=self.history)
 
     @error_handler
     async def send_message(
         self, message: str, tools: Optional[List[Tool]] = None
     ) -> str:
+        # If no active chat session, create one.
         if self.chat is None:
             await self._create_chat()
+        # Append the user's message to the history.
         user_content = UserContent(parts=[Part(text=message)])
         self.history.append(user_content)
+        # Set default tools if none provided.
         if tools is None:
             tools = [Tool(google_search=GoogleSearch())]
         cfg = GenerateContentConfig(
@@ -99,11 +104,14 @@ class GeminiAI:
             temperature=0.1,
             tools=tools,
         )
-        response = await self.client.aio.models.generate_content(
-            model=self.model, contents=message, config=cfg
-        )
+        # Send the message using the chat session's send_message method.
+        # (Assumes that the underlying API supports a config parameter.)
+        response = await self.chat.send_message(message, config=cfg)
         model_content = ModelContent(parts=[Part(text=response.text)])
         self.history.append(model_content)
+        # Optionally, re-create the chat session with the updated history
+        # so that the next message includes the full conversation context.
+        await self._create_chat()
         return response.text
 
     @error_handler
@@ -131,9 +139,14 @@ class GeminiAI:
             temperature=0.1,
             tools=tools,
         )
+        # For vision, we use the generate_content endpoint directly.
         response = await self.client.aio.models.generate_content(
             model=self.model, contents=[prompt, image_obj], config=cfg
         )
+        # Optionally update history with the vision prompt and result.
+        user_content = UserContent(parts=[Part(text=prompt)])
+        model_content = ModelContent(parts=[Part(text=response.text)])
+        self.history.extend([user_content, model_content])
         return response.text
 
     def _open_image(self, image_path: str) -> Image.Image:
