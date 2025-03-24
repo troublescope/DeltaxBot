@@ -28,7 +28,7 @@ async def chatai(client: Client, message: types.Message) -> None:
         else (message.text or message.caption or "")
     )
 
-    ai = await gemini_chat.get_chat(target_user.id)
+    ai = await gemini_chat.get_session(target_user.id)
     msg = message.reply_to_message or message
     if getattr(msg, "photo", None):
         photo_path = None
