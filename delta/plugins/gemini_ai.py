@@ -63,7 +63,7 @@ async def chatai(client: Client, message: types.Message) -> None:
                     pass
     else:
         try:
-            resp = await ai.send_message(str(text))
+            resp = await ai.send(str(text))
             # Check if response exceeds 4000 characters
             if len(resp) > 4000:
                 parts = split_text(resp, 4000)
